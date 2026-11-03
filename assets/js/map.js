@@ -6,7 +6,7 @@ window.SmartMap = (function () {
 
   const RAMP = ['#e6f4ea', '#a8dbb7', '#5fb87c', '#258a47', '#0e4d22']; // sequential: เขียวเดียว อ่อน→เข้ม
   const BASEMAPS = {
-    light: { label: '🗺️ Light', url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', attr: '© OpenStreetMap © CARTO' },
+    light: { label: '🗺️ Light', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}', attr: 'Tiles © Esri — Esri, HERE, Garmin, © OpenStreetMap contributors', maxZoom: 16 },
     osm: { label: '🛣️ OSM', url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', attr: '© OpenStreetMap contributors' },
     sat: { label: '🛰️ ดาวเทียม', url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: 'Tiles © Esri' },
     none: { label: '⬜ ไม่มี', url: null },
@@ -54,7 +54,7 @@ window.SmartMap = (function () {
     if (base) map.removeLayer(base);
     base = null;
     const b = BASEMAPS[k];
-    if (b.url) base = L.tileLayer(b.url, { attribution: b.attr, maxZoom: 18 }).addTo(map).bringToBack();
+    if (b.url) base = L.tileLayer(b.url, { attribution: b.attr, maxZoom: b.maxZoom || 18 }).addTo(map).bringToBack();
   }
   function resetView() { const m = window.innerWidth < 760; map.fitBounds(layer.getBounds(), m ? { paddingTopLeft: [10, 90], paddingBottomRight: [10, 80] } : { paddingTopLeft: [40, 70], paddingBottomRight: [40, 100] }); }
 
