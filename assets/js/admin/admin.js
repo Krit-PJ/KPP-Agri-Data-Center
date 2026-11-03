@@ -382,5 +382,22 @@
 
   // ---------- start ----------
   if (!API.enabled()) { showLogin(); msg('login-msg', 'ยังไม่ได้ตั้งค่า API_URL ใน assets/js/config.js (ดู docs/DEPLOY.md)', 'err'); return; }
+  const claim = (location.hash.match(/^#claim=([0-9a-f]{64})$/) || [])[1];
+  if (claim) {
+    $('claim').classList.remove('hidden');
+    $('claim-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      if (f.get('password') !== f.get('password2')) return msg('claim-msg', 'รหัสผ่านไม่ตรงกัน', 'err');
+      try {
+        const r = await API.post('adminClaim', [{ token: claim, password: f.get('password') }]);
+        history.replaceState(null, '', location.pathname);
+        $('claim').classList.add('hidden'); showLogin();
+        msg('login-msg', '✅ ' + r.message, 'ok');
+        document.querySelector('#login-form [name=username]').value = r.username;
+      } catch (err) { msg('claim-msg', err.message, 'err'); }
+    });
+    return;
+  }
   if (S.token) enter().catch(() => logout(true)); else showLogin();
 })();

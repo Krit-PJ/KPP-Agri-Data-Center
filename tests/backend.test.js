@@ -145,3 +145,22 @@ test('links CRUD (super)', () => {
   assert.ok(g.post({ method: 'linkDelete', token: tok, args: [{ id: s.result.id }] }).ok);
   assert.strictEqual(g.post({ method: 'linkList', token: tok }).result.length, 2);
 });
+
+test('super admin bootstrap by one-time emailed claim link (no password handled by anyone else)', () => {
+  const g = createGas({ gsDir: path.join(ROOT, 'apps-script'), seed: seedFromCsv(path.join(ROOT, 'data/agri_data.csv'), path.join(ROOT, 'data/districts.csv')) });
+  g.props.set('SITE_URL', 'https://krit-pj.github.io/KPP-Agri-Data-Center/');
+  // ไม่ต้องรัน setupSystem: การเรียก Web App ครั้งแรกติดตั้งให้เอง
+  assert.ok(g.get({ action: 'bootstrap' }).ok);
+  assert.ok(g.ss.getSheetByName('admins') && g.ss.getSheetByName('พืช_อ้อย'));
+  assert.strictEqual(g.outbox.length, 1);
+  assert.strictEqual(g.outbox[0].to, 'noonoy.cmu@gmail.com');
+  const tok = g.outbox[0].body.match(/#claim=([0-9a-f]{64})/)[1];
+  assert.match(g.post({ method: 'adminClaim', args: [{ token: 'a'.repeat(64), password: 'Abcdefgh1' }] }).error, /ไม่ถูกต้อง/);
+  assert.match(g.post({ method: 'adminClaim', args: [{ token: tok, password: 'short' }] }).error, /8/);
+  const c = g.post({ method: 'adminClaim', args: [{ token: tok, password: 'My#Secret2026' }] });
+  assert.ok(c.ok, c.error); assert.strictEqual(c.result.username, 'krit');
+  assert.match(g.post({ method: 'adminClaim', args: [{ token: tok, password: 'Another#2026' }] }).error, /ถูกใช้ไปแล้ว/);
+  assert.ok(login(g, 'krit', 'My#Secret2026'));
+  // เรียกซ้ำไม่ส่งอีเมลซ้ำ
+  g.get({ action: 'bootstrap' }); assert.strictEqual(g.outbox.length, 1);
+});

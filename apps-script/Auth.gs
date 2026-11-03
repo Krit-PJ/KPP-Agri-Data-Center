@@ -40,16 +40,34 @@ function adminRecord_(username) {
   return null;
 }
 
-/** สร้าง Super Admin คนแรกจาก Script Properties แล้วลบรหัสผ่านตัวจริงทิ้ง */
+const DEFAULT_SUPER_USERNAME = 'krit';
+const CLAIM_HOURS = 48;
+
+/**
+ * สร้าง Super Admin คนแรก มี 2 วิธี
+ *  ก) ตั้ง Script Properties SUPER_ADMIN_USERNAME + SUPER_ADMIN_PASSWORD แล้วรัน setupSystem() (รหัสผ่านถูกลบหลังเก็บ hash)
+ *  ข) ไม่ตั้งรหัสผ่าน → ระบบส่ง "ลิงก์ตั้งรหัสผ่าน" (ใช้ได้ครั้งเดียว 48 ชม.) ไปที่อีเมลเจ้าของสคริปต์
+ *     เจ้าของตั้งรหัสผ่านเองที่ admin.html — ไม่มีใครอื่นเห็นรหัสผ่าน
+ */
 function ensureSuperAdmin_() {
   const props = PropertiesService.getScriptProperties();
   const sh = sheetByName_('admins');
-  const hasSuper = dataRows_(sh).some(function (r) { return text_(r[2]) === 'super' && text_(r[3]) !== 'disabled'; });
-  const username = normalizeUsername_(props.getProperty('SUPER_ADMIN_USERNAME'));
+  const hasSuper = dataRows_(sh).some(function (r) { return text_(r[2]) === 'super' && text_(r[3]) !== 'disabled' && r[4]; });
+  const username = normalizeUsername_(props.getProperty('SUPER_ADMIN_USERNAME') || DEFAULT_SUPER_USERNAME);
   const password = props.getProperty('SUPER_ADMIN_PASSWORD');
-  if (!password) return hasSuper ? 'PASS: มี Super Admin แล้ว' : 'INFO: ยังไม่มี Super Admin — ตั้ง Script Properties SUPER_ADMIN_USERNAME และ SUPER_ADMIN_PASSWORD แล้วรัน setupSystem() อีกครั้ง';
   if (!validUsername_(username)) return 'FAIL: SUPER_ADMIN_USERNAME ต้องยาว 3–32 ตัว (a–z, 0–9, . _ -)';
+  if (!password) {
+    if (hasSuper) return 'PASS: มี Super Admin แล้ว';
+    return sendSuperClaim_(username);
+  }
   try { validatePassword_(password); } catch (e) { return 'FAIL: SUPER_ADMIN_PASSWORD — ' + e.message; }
+  setSuperPassword_(username, password, 'setupSystem');
+  props.deleteProperty('SUPER_ADMIN_PASSWORD');
+  return 'PASS: Super Admin "' + username + '" พร้อมใช้งาน (ลบ SUPER_ADMIN_PASSWORD ออกจาก Script Properties แล้ว)';
+}
+
+function setSuperPassword_(username, password, by) {
+  const sh = sheetByName_('admins');
   const salt = Utilities.getUuid();
   const now = new Date();
   const a = adminRecord_(username);
@@ -57,11 +75,42 @@ function ensureSuperAdmin_() {
     sh.getRange(a.row, 3, 1, 4).setValues([['super', 'active', hashPassword_(salt, password), salt]]);
     sh.getRange(a.row, 10).setValue(now);
   } else {
-    sh.appendRow([username, 'Super Admin', 'super', 'active', hashPassword_(salt, password), salt, now, 'setupSystem', '', now, '']);
+    sh.appendRow([username, 'Super Admin', 'super', 'active', hashPassword_(salt, password), salt, now, by, '', now, '']);
+    sh.getRange(sh.getLastRow(), 1).setNumberFormat('@');
   }
-  props.deleteProperty('SUPER_ADMIN_PASSWORD');
-  audit_({ username: username, name: 'Super Admin', role: 'super' }, 'super_bootstrap', 'สร้าง Super Admin จาก Script Properties');
-  return 'PASS: Super Admin "' + username + '" พร้อมใช้งาน (ลบ SUPER_ADMIN_PASSWORD ออกจาก Script Properties แล้ว)';
+  audit_({ username: username, name: 'Super Admin', role: 'super' }, 'super_bootstrap', 'ตั้งรหัสผ่าน Super Admin (' + by + ')');
+}
+
+function sendSuperClaim_(username) {
+  const props = PropertiesService.getScriptProperties();
+  const exp = Number(props.getProperty('SUPER_CLAIM_EXPIRES') || 0);
+  if (props.getProperty('SUPER_CLAIM_HASH') && exp > Date.now()) return 'INFO: ส่งลิงก์ตั้งรหัสผ่าน Super Admin ไปแล้ว (ตรวจอีเมลเจ้าของสคริปต์)';
+  const token = newToken_();
+  props.setProperties({ SUPER_CLAIM_HASH: sha256Hex_(token), SUPER_CLAIM_USER: username, SUPER_CLAIM_EXPIRES: String(Date.now() + CLAIM_HOURS * 3600000) });
+  const to = Session.getEffectiveUser().getEmail();
+  const link = siteUrl_() + 'admin.html#claim=' + token;
+  try {
+    MailApp.sendEmail({ to: to, subject: '[KPP Agri Data Center] ตั้งรหัสผ่าน Super Admin',
+      body: 'ตั้งรหัสผ่านสำหรับ Super Admin ชื่อผู้ใช้ "' + username + '" ที่ลิงก์นี้ (ใช้ได้ครั้งเดียว ภายใน ' + CLAIM_HOURS + ' ชั่วโมง)\n' + link +
+        '\n\nถ้าคุณไม่ได้ติดตั้งระบบนี้ ไม่ต้องทำอะไร' });
+  } catch (e) { Logger.log('ส่งอีเมลไม่สำเร็จ ลิงก์: ' + link); }
+  Logger.log('ลิงก์ตั้งรหัสผ่าน Super Admin: ' + link);
+  return 'INFO: ส่งลิงก์ตั้งรหัสผ่าน Super Admin "' + username + '" ไปที่ ' + to + ' แล้ว (ดูใน Execution log ได้ด้วย)';
+}
+
+/** ใช้ลิงก์ตั้งรหัสผ่าน Super Admin (ครั้งเดียว) */
+function adminClaim_(input) {
+  input = input || {};
+  const props = PropertiesService.getScriptProperties();
+  const h = props.getProperty('SUPER_CLAIM_HASH');
+  if (!h || sha256Hex_(String(input.token || '')) !== h || Number(props.getProperty('SUPER_CLAIM_EXPIRES') || 0) < Date.now()) {
+    throw new Error('ลิงก์ตั้งรหัสผ่านไม่ถูกต้อง หมดอายุ หรือถูกใช้ไปแล้ว');
+  }
+  const password = validatePassword_(input.password);
+  const username = props.getProperty('SUPER_CLAIM_USER') || DEFAULT_SUPER_USERNAME;
+  setSuperPassword_(username, password, 'claim link');
+  ['SUPER_CLAIM_HASH', 'SUPER_CLAIM_USER', 'SUPER_CLAIM_EXPIRES'].forEach(function (k) { props.deleteProperty(k); });
+  return { username: username, message: 'ตั้งรหัสผ่านแล้ว เข้าสู่ระบบด้วยชื่อผู้ใช้ "' + username + '"' };
 }
 
 function adminLogin_(input) {

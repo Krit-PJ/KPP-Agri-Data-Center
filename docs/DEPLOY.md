@@ -8,38 +8,31 @@
 
 ## 1. สร้างโปรเจกต์ Apps Script
 
-1. เปิดชีต **KPP Agri Database (กำแพงเพชร)** → เมนู **ส่วนขยาย → Apps Script**
-2. ลบโค้ดตัวอย่างใน `Code.gs` แล้วสร้างไฟล์ตามชื่อในโฟลเดอร์ `apps-script/` ให้ครบ 9 ไฟล์
-   (`Config.gs`, `Api.gs`, `Data.gs`, `Auth.gs`, `Import.gs`, `Requests.gs`, `Counter.gs`, `Links.gs`, `Setup.gs`) คัดลอกเนื้อหาไปวางทีละไฟล์
-3. **การตั้งค่าโปรเจกต์ (⚙️)** → ติ๊ก "แสดงไฟล์ Manifest appsscript.json" → วางเนื้อหาจาก `apps-script/appsscript.json`
+1. เปิด https://script.new (บัญชีเจ้าของชีต) ตั้งชื่อโปรเจกต์ `KPP Agri Data Center API`
+2. วางเนื้อหาทั้งหมดของ **`apps-script/build/Code.gs`** แทนโค้ดใน `Code.gs` (เป็นไฟล์รวมของ `apps-script/*.gs` ทั้ง 9 ไฟล์)
+3. **การตั้งค่าโปรเจกต์ (⚙️)** → ติ๊ก "แสดงไฟล์ Manifest appsscript.json" → วางเนื้อหาจาก `apps-script/appsscript.json` → บันทึก
 
-## 2. ตั้งค่า Script Properties
-
-**การตั้งค่าโปรเจกต์ → Script Properties → เพิ่ม**
+## 2. Script Properties (ไม่บังคับ)
 
 | Property | ค่า |
 |---|---|
-| `SUPER_ADMIN_USERNAME` | `krit` |
-| `SUPER_ADMIN_PASSWORD` | รหัสผ่าน Super Admin (อย่างน้อย 8 ตัว) — ระบบจะเก็บเป็น hash แล้ว **ลบค่านี้ทิ้งเอง** |
-| `SITE_URL` | `https://krit-pj.github.io/KPP-Agri-Data-Center/` |
-| `NOTIFY_EMAIL` | (ไม่บังคับ) อีเมลรับแจ้งเตือนคำขอดาวน์โหลดใหม่ ไม่ใส่ = อีเมลเจ้าของสคริปต์ |
+| `SITE_URL` | ค่าเริ่มต้นคือ `https://krit-pj.github.io/KPP-Agri-Data-Center/` |
+| `SUPER_ADMIN_USERNAME` | ค่าเริ่มต้นคือ `krit` |
+| `NOTIFY_EMAIL` | อีเมลรับแจ้งเตือนคำขอใหม่ (ค่าเริ่มต้น = อีเมลเจ้าของสคริปต์) |
 
-ชื่อผู้ใช้ไม่สนตัวพิมพ์ใหญ่/เล็ก (`Krit` = `krit`)
+**ไม่ต้องใส่รหัสผ่านใน Script Properties** — ดูข้อ 3
 
-## 3. รัน setupSystem()
+## 3. ติดตั้งอัตโนมัติ + ตั้งรหัสผ่าน Super Admin
 
-เลือกฟังก์ชัน `setupSystem` → **เรียกใช้** → อนุญาตสิทธิ์ (Sheets, ส่งอีเมล) → ดู Execution log ควรเห็น
-```
-PASS: ชีตระบบพร้อม
-PASS: แปลงค่าตัวเลขในชีต data … เซลล์
-PASS: ชีตมุมมองรายพืช 9 ชีต
-PASS: Super Admin "krit" พร้อมใช้งาน (ลบ SUPER_ADMIN_PASSWORD ออกจาก Script Properties แล้ว)
-```
-รันซ้ำได้ทุกเมื่อ (เช่น หลังอัปเดตโค้ด) ไม่ทำข้อมูลเสีย
+ครั้งแรกที่ Web App ถูกเรียก (เปิดหน้าเว็บ) ระบบจะรัน `setupSystem()` ให้เอง: สร้างชีตระบบ, แปลงตัวเลขในชีต data,
+สร้างชีตมุมมองรายพืช 9 ชีต และ **ส่งอีเมล "ตั้งรหัสผ่าน Super Admin" ไปที่อีเมลเจ้าของสคริปต์**
+เปิดลิงก์ในอีเมล (ใช้ได้ครั้งเดียว ภายใน 48 ชม.) แล้วตั้งรหัสผ่านเอง ไม่มีใครอื่นเห็นรหัสผ่าน
+
+> ทางเลือก: ตั้ง `SUPER_ADMIN_PASSWORD` ใน Script Properties แล้ว Run `setupSystem` ระบบเก็บ hash แล้วลบค่าตัวจริงทิ้ง
 
 ## 4. Deploy เป็น Web App
 
-**ทำให้ใช้งานได้ → การทำให้ใช้งานได้รายการใหม่ → ประเภท: เว็บแอป**
+**ทำให้ใช้งานได้ (Deploy) → การทำให้ใช้งานได้รายการใหม่ → ประเภท: เว็บแอป** แล้วอนุญาตสิทธิ์ (Sheets, ส่งอีเมล)
 - เรียกใช้ในฐานะ: **ฉัน**
 - ผู้มีสิทธิ์เข้าถึง: **ทุกคน**
 

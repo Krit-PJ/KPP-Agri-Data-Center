@@ -20,6 +20,7 @@ function setupSystem() {
   out.push('PASS: ชีตมุมมองรายพืช ' + rebuildCropViews_().length + ' ชีต');
   out.push(ensureSuperAdmin_());
   invalidateData_();
+  PropertiesService.getScriptProperties().setProperty('SETUP_VERSION', APP_VERSION);
   if (!prop_('SITE_URL')) out.push('INFO: ยังไม่ได้ตั้ง SITE_URL ใช้ค่าเริ่มต้น ' + DEFAULT_SITE_URL);
   Logger.log(out.join('\n'));
   return out;
@@ -32,4 +33,12 @@ function selfTest() {
     'visits=' + JSON.stringify(visitCounts_())];
   Logger.log(res.join('\n'));
   return res;
+}
+
+/** ติดตั้งอัตโนมัติครั้งแรกที่ Web App ถูกเรียก (และหลังอัปเดตเวอร์ชันโค้ด) จึงไม่ต้องกด Run เอง */
+function autoSetup_() {
+  if (prop_('SETUP_VERSION') === APP_VERSION) return;
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(25000)) return;
+  try { if (prop_('SETUP_VERSION') !== APP_VERSION) setupSystem(); } finally { lock.releaseLock(); }
 }

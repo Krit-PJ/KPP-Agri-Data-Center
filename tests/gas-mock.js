@@ -66,7 +66,7 @@ function createGas({ gsDir, seed }) {
       putAll: (o) => Object.entries(o).forEach(([k, v]) => cache.set(k, String(v))),
       getAll: (ks) => Object.fromEntries(ks.filter((k) => cache.has(k)).map((k) => [k, cache.get(k)])),
       removeAll: (ks) => ks.forEach((k) => cache.delete(k)) }) },
-    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (props.has(k) ? props.get(k) : null), setProperty: (k, v) => props.set(k, v), deleteProperty: (k) => props.delete(k) }) },
+    PropertiesService: { getScriptProperties: () => ({ getProperty: (k) => (props.has(k) ? props.get(k) : null), setProperty: (k, v) => props.set(k, v), setProperties: (o) => Object.entries(o).forEach(([k, v]) => props.set(k, String(v))), deleteProperty: (k) => props.delete(k) }) },
     LockService: { getScriptLock: () => ({ waitLock() {}, tryLock: () => true, releaseLock() {} }) },
     Utilities: {
       DigestAlgorithm: { SHA_256: 'sha256' }, Charset: { UTF_8: 'utf8' },

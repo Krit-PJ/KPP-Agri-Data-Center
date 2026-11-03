@@ -5,7 +5,8 @@
   "description": "ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร — GitHub Pages + Google Apps Script",
   "scripts": {
     "test": "node --test tests/backend.test.js tests/importer.test.js",
-    "dev": "node tests/dev-server.js 8790"
+    "dev": "node tests/dev-server.js 8790",
+    "build:gas": "node tests/build-gas.js"
   },
   "devDependencies": {
     "papaparse": "5.4.1",

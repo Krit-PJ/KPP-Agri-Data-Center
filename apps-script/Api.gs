@@ -16,6 +16,7 @@ const API_METHODS = {
   requestDownload: { role: null, fn: function (a) { return requestDownload_(a[0]); } },
   // auth
   adminLogin: { role: null, fn: function (a) { return adminLogin_(a[0]); } },
+  adminClaim: { role: null, fn: function (a) { return adminClaim_(a[0]); } },
   adminLogout: { role: 'admin', fn: function (a, s, t) { return adminLogout_(t); } },
   adminMe: { role: 'admin', fn: function (a, s) { return { username: s.username, name: s.name, role: s.role, version: APP_VERSION }; } },
   adminChangePassword: { role: 'admin', fn: function (a, s) { return adminChangePassword_(a[0], s); } },
@@ -44,6 +45,7 @@ const API_METHODS = {
 function doGet(e) {
   const p = (e && e.parameter) || {};
   try {
+    autoSetup_();
     switch (String(p.action || 'bootstrap')) {
       case 'bootstrap': return json_({ ok: true, result: bootstrap_() });
       case 'hit': return json_({ ok: true, result: recordVisit_(p.v === '1') });
@@ -60,6 +62,7 @@ function doGet(e) {
 function doPost(e) {
   let out;
   try {
+    autoSetup_();
     const body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     const def = API_METHODS[String(body.method || '')];
     if (!def) throw new Error('Method not allowed');

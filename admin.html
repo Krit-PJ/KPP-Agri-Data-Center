@@ -13,7 +13,7 @@
 </head>
 <body class="adm">
   <header class="appbar">
-    <a class="brand" href="./"><img class="logo" src="assets/img/logo-doae.png" alt="กรมส่งเสริมการเกษตร" />
+    <a class="brand" href="./"><img class="logo" src="assets/img/logo-doae.png" alt="กรมส่งเสริมการเกษตร" /><img class="logo" src="assets/img/seal-kpp.png" alt="ตราจังหวัดกำแพงเพชร" />
       <span class="brand-txt"><b>ผู้ดูแลระบบ</b><small>KPP Agri Data Center</small></span></a>
     <div class="who" id="who"></div>
   </header>
@@ -27,6 +27,18 @@
       <div class="form-msg" id="login-msg"></div>
       <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
       <p class="muted small">ลืมรหัสผ่าน: ติดต่อ Super Admin เพื่อตั้งรหัสผ่านใหม่</p>
+    </form>
+  </section>
+
+  <!-- ตั้งรหัสผ่าน Super Admin ครั้งแรก (ลิงก์จากอีเมล) -->
+  <section id="claim" class="narrow hidden">
+    <form class="card form-card login-card" id="claim-form">
+      <h2>🔑 ตั้งรหัสผ่าน Super Admin</h2>
+      <p class="muted small">ลิงก์นี้ใช้ได้ครั้งเดียว รหัสผ่านถูกเก็บแบบเข้ารหัส ไม่มีใครเห็นได้</p>
+      <label>รหัสผ่านใหม่ <small>(อย่างน้อย 8 ตัว)</small><input name="password" type="password" autocomplete="new-password" required minlength="8" /></label>
+      <label>ยืนยันรหัสผ่าน<input name="password2" type="password" autocomplete="new-password" required /></label>
+      <div class="form-msg" id="claim-msg"></div>
+      <button class="btn primary" type="submit">ตั้งรหัสผ่าน</button>
     </form>
   </section>
 

@@ -7,8 +7,7 @@ window.APP_CONFIG = {
   SITE_NAME: 'ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร',
   SITE_NAME_EN: 'KPP Agri Data Center',
   LOGO_DOAE: 'assets/img/logo-doae.png',
-  // ตราจังหวัด: วางไฟล์ไว้ที่ assets/img/seal-kpp.png แล้วเปลี่ยนค่านี้ได้
-  LOGO_PROVINCE: 'https://upload.wikimedia.org/wikipedia/commons/f/fd/Seal_of_Kamphaeng_Phet_Province_%28color_version%2C_Thai_Fine_Art_Department%29.png',
+  LOGO_PROVINCE: 'assets/img/seal-kpp.png',
 
   FALLBACK_DATA: 'data/agri_data.csv',
   FALLBACK_DISTRICTS: 'data/districts.csv',
