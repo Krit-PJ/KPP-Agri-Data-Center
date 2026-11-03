@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#1a7f37" />
+  <title>ผู้ดูแลระบบ | KPP Agri Data Center</title>
+  <link rel="icon" href="assets/img/logo-doae.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+  <link rel="stylesheet" href="assets/css/admin.css" />
+</head>
+<body class="adm">
+  <header class="appbar">
+    <a class="brand" href="./"><img class="logo" src="assets/img/logo-doae.png" alt="กรมส่งเสริมการเกษตร" />
+      <span class="brand-txt"><b>ผู้ดูแลระบบ</b><small>KPP Agri Data Center</small></span></a>
+    <div class="who" id="who"></div>
+  </header>
+
+  <!-- login -->
+  <section id="login" class="narrow hidden">
+    <form class="card form-card login-card" id="login-form">
+      <h2>🔐 เข้าสู่ระบบผู้ดูแล</h2>
+      <label>ชื่อผู้ใช้ <small>(Admin ใช้เบอร์โทรศัพท์)</small><input name="username" autocomplete="username" required /></label>
+      <label>รหัสผ่าน<input name="password" type="password" autocomplete="current-password" required /></label>
+      <div class="form-msg" id="login-msg"></div>
+      <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
+      <p class="muted small">ลืมรหัสผ่าน: ติดต่อ Super Admin เพื่อตั้งรหัสผ่านใหม่</p>
+    </form>
+  </section>
+
+  <!-- app -->
+  <section id="app" class="hidden">
+    <nav class="adm-tabs" id="adm-tabs">
+      <button data-tab="import">📤 นำเข้าข้อมูล</button>
+      <button data-tab="history">🕘 ประวัติการนำเข้า</button>
+      <button data-tab="requests">📥 คำขอดาวน์โหลด <span class="badge" id="pending-badge"></span></button>
+      <button data-tab="links" data-super>🔗 ลิงก์เชื่อมโยง</button>
+      <button data-tab="admins" data-super>👥 ผู้ดูแลระบบ</button>
+      <button data-tab="log" data-super>📜 บันทึก/สถิติ</button>
+      <button data-tab="account">⚙️ บัญชีของฉัน</button>
+    </nav>
+
+    <div class="adm-body">
+      <!-- IMPORT -->
+      <div class="tab" id="tab-import">
+        <div class="card pad">
+          <h3>นำเข้าข้อมูลจากไฟล์</h3>
+          <p class="muted">รองรับ <b>Excel (.xlsx/.xls)</b>, <b>CSV</b> และ <b>PDF ที่เป็นข้อความ</b> (ไม่รองรับ PDF ที่สแกนเป็นภาพ) ระบบจะหาหัวตาราง ชื่ออำเภอ ชนิดพืช และปีให้อัตโนมัติ
+            กรุณาตรวจการจับคู่คอลัมน์และตัวอย่างข้อมูลก่อนยืนยันทุกครั้ง · ระบบสำรองข้อมูลก่อนนำเข้าและย้อนกลับได้</p>
+          <label class="drop" id="drop">
+            <input type="file" id="file" multiple accept=".csv,.xlsx,.xls,.pdf,text/csv,application/pdf" />
+            <span>📂 ลากไฟล์มาวาง หรือ <u>เลือกไฟล์</u> (เลือกได้หลายไฟล์)</span>
+          </label>
+          <div class="form-msg" id="file-msg"></div>
+        </div>
+        <div id="tables"></div>
+        <div class="card pad import-bar hidden" id="import-bar">
+          <div id="import-sum"></div>
+          <label class="note">หมายเหตุการนำเข้า<input id="import-note" maxlength="300" placeholder="เช่น ข้อมูลปี 2568 จากรายงาน สศก." /></label>
+          <div class="row-btns">
+            <button class="btn" id="btn-check">🔍 ตรวจสอบกับฐานข้อมูล</button>
+            <button class="btn primary" id="btn-commit" disabled>✅ ยืนยันนำเข้า</button>
+          </div>
+          <div id="check-result"></div>
+        </div>
+      </div>
+
+      <!-- HISTORY -->
+      <div class="tab" id="tab-history"><div class="card pad"><h3>ประวัติการนำเข้า</h3><p class="muted">ย้อนกลับได้เฉพาะการนำเข้าล่าสุด (ระบบเก็บสำเนาสำรอง 10 ครั้งล่าสุด)</p><div class="tbl-wrap"><table id="hist-table"></table></div></div></div>
+
+      <!-- REQUESTS -->
+      <div class="tab" id="tab-requests">
+        <div class="chips" id="req-filter">
+          <button class="chip on" data-st="pending">รอพิจารณา</button><button class="chip" data-st="approved">อนุมัติแล้ว</button>
+          <button class="chip" data-st="rejected">ไม่อนุมัติ</button><button class="chip" data-st="">ทั้งหมด</button>
+        </div>
+        <div id="req-list"></div>
+      </div>
+
+      <!-- LINKS -->
+      <div class="tab" id="tab-links">
+        <div class="card pad"><h3>ลิงก์เชื่อมโยงไปยังเว็บไซต์อื่น</h3><div class="tbl-wrap"><table id="link-table"></table></div></div>
+        <form class="card pad" id="link-form"><h3 id="link-form-h">เพิ่มลิงก์</h3>
+          <input type="hidden" name="id" />
+          <div class="grid2">
+            <label>ชื่อลิงก์ *<input name="title" required maxlength="120" /></label>
+            <label>URL (https://) *<input name="url" required type="url" maxlength="500" /></label>
+            <label class="span2">คำอธิบาย<input name="description" maxlength="300" /></label>
+            <label>ไอคอน (emoji)<input name="icon" maxlength="8" placeholder="🔗" /></label>
+            <label>ลำดับ<input name="order" type="number" min="1" /></label>
+            <label class="chk"><input type="checkbox" name="active" checked /> แสดงบนเว็บไซต์</label>
+          </div>
+          <div class="row-btns"><button class="btn primary" type="submit">บันทึกลิงก์</button><button class="btn" type="reset" id="link-reset">ล้างฟอร์ม</button></div>
+        </form>
+      </div>
+
+      <!-- ADMINS -->
+      <div class="tab" id="tab-admins">
+        <div class="card pad"><h3>ผู้ดูแลระบบ</h3><div class="tbl-wrap"><table id="admin-table"></table></div></div>
+        <form class="card pad" id="admin-form"><h3 id="admin-form-h">เพิ่มผู้ดูแล</h3>
+          <div class="grid2">
+            <label>ชื่อผู้ใช้ * <small>(Admin ใช้เบอร์โทร 10 หลักได้)</small><input name="username" required maxlength="32" /></label>
+            <label>ชื่อ-สกุล *<input name="name" required maxlength="120" /></label>
+            <label>บทบาท<select name="role"><option value="admin">Admin</option><option value="super">Super Admin</option></select></label>
+            <label>สถานะ<select name="status"><option value="active">ใช้งาน</option><option value="disabled">ระงับ</option></select></label>
+            <label>เบอร์โทรศัพท์<input name="phone" maxlength="12" inputmode="tel" /></label>
+            <label id="pw-label">รหัสผ่านเริ่มต้น * <small>(อย่างน้อย 8 ตัว)</small><input name="password" type="text" autocomplete="new-password" maxlength="128" /></label>
+          </div>
+          <div class="row-btns"><button class="btn primary" type="submit">บันทึก</button><button class="btn" type="reset" id="admin-reset">ล้างฟอร์ม</button></div>
+        </form>
+      </div>
+
+      <!-- LOG -->
+      <div class="tab" id="tab-log">
+        <div class="card pad"><h3>การเข้าใช้งานเว็บไซต์</h3><div class="stat-grid" id="log-visits"></div><div class="tbl-wrap"><table id="visit-table"></table></div></div>
+        <div class="card pad"><h3>บันทึกการทำงานของผู้ดูแล (300 รายการล่าสุด)</h3><div class="tbl-wrap tall"><table id="audit-table"></table></div></div>
+      </div>
+
+      <!-- ACCOUNT -->
+      <div class="tab" id="tab-account">
+        <form class="card pad narrow-form" id="pw-form"><h3>เปลี่ยนรหัสผ่าน</h3>
+          <label>รหัสผ่านปัจจุบัน<input name="current" type="password" autocomplete="current-password" required /></label>
+          <label>รหัสผ่านใหม่ <small>(อย่างน้อย 8 ตัว)</small><input name="next" type="password" autocomplete="new-password" required /></label>
+          <label>ยืนยันรหัสผ่านใหม่<input name="next2" type="password" autocomplete="new-password" required /></label>
+          <div class="row-btns"><button class="btn primary" type="submit">เปลี่ยนรหัสผ่าน</button></div>
+        </form>
+        <div class="card pad narrow-form"><h3>ข้อมูลชีต</h3><p class="muted">ชีตมุมมองรายพืช (พืช_…) สร้างใหม่อัตโนมัติทุกครั้งที่นำเข้า กดเพื่อสร้างใหม่ทันที</p>
+          <button class="btn" id="btn-views">🔄 สร้างชีตมุมมองรายพืชใหม่</button></div>
+      </div>
+    </div>
+  </section>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/admin/importer.js"></script>
+  <script src="assets/js/admin/admin.js"></script>
+</body>
+</html>

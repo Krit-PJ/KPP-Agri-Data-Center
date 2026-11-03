@@ -1,0 +1,15 @@
+{
+  "name": "kpp-agri-data-center",
+  "version": "2.0.0",
+  "private": true,
+  "description": "ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร — GitHub Pages + Google Apps Script",
+  "scripts": {
+    "test": "node --test tests/backend.test.js tests/importer.test.js",
+    "dev": "node tests/dev-server.js 8790"
+  },
+  "devDependencies": {
+    "papaparse": "5.4.1",
+    "pdfjs-dist": "4.10.38",
+    "xlsx": "0.18.5"
+  }
+}

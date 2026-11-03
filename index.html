@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a7f37" />
+  <meta name="description" content="ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร: แผนที่และแดชบอร์ดเนื้อที่เพาะปลูก ผลผลิต และผลผลิตต่อไร่ ของพืชเศรษฐกิจ 9 ชนิด รายอำเภอ" />
+  <title>KPP Agri Data Center | ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร</title>
+  <link rel="icon" href="assets/img/logo-doae.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/vendor/leaflet.css" />
+  <link rel="stylesheet" href="assets/css/style.css" />
+</head>
+<body>
+  <div id="loading" class="loading"><div class="spinner"></div><p>กำลังโหลดข้อมูล…</p></div>
+
+  <header class="appbar">
+    <a class="brand" href="#map" aria-label="หน้าแรก">
+      <img class="logo" id="logo-doae" alt="กรมส่งเสริมการเกษตร" />
+      <img class="logo" id="logo-prov" alt="ตราจังหวัดกำแพงเพชร" />
+      <span class="brand-txt"><b id="site-name">ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร</b><small>KPP Agri Data Center · สำนักงานเกษตรจังหวัดกำแพงเพชร</small></span>
+    </a>
+    <nav class="tabs" aria-label="เมนูหลัก">
+      <button data-go="map">🗺️ Smart Map</button>
+      <button data-go="dashboard">📊 แดชบอร์ด</button>
+      <button data-go="request">📥 ขอข้อมูล</button>
+      <button data-go="links">🔗 ระบบเชื่อมโยง</button>
+    </nav>
+    <div class="counter-chip" id="counter-chip" title="จำนวนการเข้าใช้งาน"></div>
+  </header>
+
+  <div class="cropbar" id="cropbar" role="tablist" aria-label="เลือกชนิดพืช"></div>
+
+  <!-- ================= SMART MAP ================= -->
+  <section id="view-map" class="view" aria-label="แผนที่">
+    <div id="map"></div>
+    <div class="float tl">
+      <button class="pill" id="btn-reset" title="รีเซ็ตมุมมอง">🔄 <span class="lbl">รีเซ็ตมุมมอง</span></button>
+      <div class="pill search"><span>🔍</span><input id="search" list="district-list" placeholder="ค้นหาอำเภอ…" autocomplete="off" aria-label="ค้นหาอำเภอ" /><datalist id="district-list"></datalist></div>
+    </div>
+    <div class="float tr"><button class="pill strong" id="btn-layer" aria-controls="layer-panel">🥞 <span class="lbl">ชั้นข้อมูล</span></button></div>
+    <div class="float tl2"><span class="chip-title" id="map-title"></span></div>
+
+    <aside class="panel sheet" id="layer-panel" aria-label="ตัวเลือกแผนที่">
+      <div class="grab"></div>
+      <div class="panel-head"><b>ตัวเลือกแผนที่</b><button class="x" id="close-panel" aria-label="ปิด">✕</button></div>
+      <div class="panel-sec"><div class="sec-label">ปีเพาะปลูก</div><div class="year-grid" id="map-years"></div></div>
+      <div class="panel-sec"><div class="sec-label">ตัวชี้วัด (สีบนแผนที่)</div><div class="metric-list" id="map-metrics"></div></div>
+      <div class="panel-sec"><div class="sec-label">แผนที่พื้นหลัง</div><div class="chips" id="basemaps"></div></div>
+      <div class="src-badge" id="src-badge"></div>
+    </aside>
+
+    <div class="float bl legend" id="legend"></div>
+    <div class="kpi-strip" id="map-kpis"></div>
+    <aside class="info-card sheet" id="info-card"></aside>
+  </section>
+
+  <!-- ================= DASHBOARD ================= -->
+  <section id="view-dashboard" class="view page" aria-label="แดชบอร์ด">
+    <main class="dash">
+      <div class="kpis" id="kpis"></div>
+      <div class="year-box card">
+        <div class="yb-title">ปีเพาะปลูก <small>(แตะเพื่อเลือก/ยกเลิก)</small></div>
+        <div class="year-grid dark" id="dash-years"></div>
+      </div>
+      <div class="card c-purple chart-card"><h3>เนื้อที่เพาะปลูก (ไร่) แยกตามอำเภอ</h3><div class="cv"><canvas id="ch-planted"></canvas></div></div>
+      <div class="card c-yellow chart-card"><h3>ผลผลิต (ตัน) แยกตามอำเภอ</h3><div class="cv"><canvas id="ch-production"></canvas></div></div>
+      <div class="card c-pink chart-card"><h3>เนื้อที่เพาะปลูก (ไร่) รายชนิดพืช</h3><div class="cv donut"><canvas id="ch-share"></canvas></div></div>
+      <div class="card table-card"><div class="tbl-wrap"><table id="year-table"></table></div></div>
+      <div class="title-card" id="title-card"></div>
+    </main>
+    <footer class="foot" id="foot"></footer>
+  </section>
+
+  <!-- ================= ขอข้อมูล ================= -->
+  <section id="view-request" class="view page" aria-label="ขอดาวน์โหลดข้อมูล">
+    <div class="narrow">
+      <div id="dl-ready"></div>
+      <div class="card form-card">
+        <h2>📥 แบบคำขอดาวน์โหลดข้อมูล</h2>
+        <p class="muted">กรอกข้อมูลให้ครบ เจ้าหน้าที่ (Admin) จะพิจารณาคำขอ เมื่ออนุมัติแล้วระบบจะส่งลิงก์ดาวน์โหลดไปที่อีเมลของท่าน (ลิงก์ใช้ได้ 7 วัน)</p>
+        <form id="req-form" novalidate>
+          <div class="grid2">
+            <label>ชื่อ-สกุล *<input name="name" required maxlength="120" autocomplete="name" /></label>
+            <label>ตำแหน่ง *<input name="position" required maxlength="120" autocomplete="organization-title" /></label>
+            <label class="span2">หน่วยงาน *<input name="agency" required maxlength="200" autocomplete="organization" /></label>
+            <label>อีเมล * <small>(สำหรับรับลิงก์ดาวน์โหลด)</small><input name="email" type="email" required maxlength="120" autocomplete="email" /></label>
+            <label>เบอร์โทรศัพท์<input name="phone" type="tel" inputmode="tel" maxlength="12" autocomplete="tel" /></label>
+            <label class="span2">วัตถุประสงค์การนำข้อมูลไปใช้ *<select name="purposeType" id="purpose-type" required></select></label>
+            <label class="span2">รายละเอียดการนำไปใช้ประโยชน์ *<textarea name="purposeDetail" rows="3" required maxlength="1000" placeholder="เช่น ใช้ประกอบงานวิจัยเรื่อง… / ใช้วางแผนส่งเสริมการผลิต…"></textarea></label>
+          </div>
+          <fieldset><legend>ชนิดพืชที่ต้องการ <small>(ไม่เลือก = ทุกชนิด)</small></legend><div class="crop-checks" id="req-crops"></div></fieldset>
+          <div class="grid2">
+            <label>ตั้งแต่ปี พ.ศ.<select name="yearFrom" id="req-from"></select></label>
+            <label>ถึงปี พ.ศ.<select name="yearTo" id="req-to"></select></label>
+          </div>
+          <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+          <label class="consent"><input type="checkbox" name="consent" /> ข้าพเจ้ายินยอมให้สำนักงานเกษตรจังหวัดกำแพงเพชรเก็บและใช้ข้อมูลส่วนบุคคลข้างต้น เพื่อพิจารณาคำขอ ติดต่อกลับ และจัดทำสถิติการใช้ข้อมูลเท่านั้น ตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562</label>
+          <div class="form-msg" id="req-msg" role="status"></div>
+          <button class="btn primary" type="submit" id="req-submit">ส่งคำขอ</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= ระบบเชื่อมโยง ================= -->
+  <section id="view-links" class="view page" aria-label="ระบบเชื่อมโยง">
+    <div class="narrow">
+      <h2 class="page-h">🔗 ระบบที่เกี่ยวข้อง</h2>
+      <div class="link-grid" id="link-grid"></div>
+      <h2 class="page-h">👁 สถิติการเข้าใช้งาน</h2>
+      <div class="stat-grid" id="visit-stats"></div>
+      <div class="card about">
+        <h3>เกี่ยวกับข้อมูล</h3>
+        <p>ข้อมูลเนื้อที่เพาะปลูก เนื้อที่เก็บเกี่ยว ผลผลิต และผลผลิตต่อไร่ ของพืชเศรษฐกิจ 9 ชนิด จำแนกรายอำเภอ 11 อำเภอ จากสำนักงานเกษตรจังหวัดกำแพงเพชร
+          ผลผลิตเฉลี่ยคำนวณจาก ผลผลิตรวม ÷ เนื้อที่เก็บเกี่ยวรวม × 1,000 (กก./ไร่) · ยางพาราคิดต่อเนื้อที่กรีด</p>
+        <p class="muted" id="about-src"></p>
+        <p><a href="admin.html" class="muted">เข้าสู่ระบบผู้ดูแล (Admin)</a></p>
+      </div>
+    </div>
+  </section>
+
+  <nav class="bottomnav" aria-label="เมนูหลัก (มือถือ)">
+    <button data-go="map"><span>🗺️</span>แผนที่</button>
+    <button data-go="dashboard"><span>📊</span>แดชบอร์ด</button>
+    <button data-go="request"><span>📥</span>ขอข้อมูล</button>
+    <button data-go="links"><span>🔗</span>เชื่อมโยง</button>
+  </nav>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/icons.js"></script>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/map.js"></script>
+  <script src="assets/js/dashboard.js"></script>
+  <script src="assets/js/request.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
