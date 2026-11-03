@@ -2,7 +2,7 @@
 window.APP_CONFIG = {
   // URL ของ Apps Script Web App (ลงท้าย /exec) — ได้จากขั้นตอน Deploy ใน docs/DEPLOY.md
   // เว้นว่าง = ใช้ไฟล์สำรองใน data/ (ระบบขอข้อมูล ตัวนับ และ Admin จะยังใช้ไม่ได้)
-  API_URL: '',
+  API_URL: 'https://script.google.com/macros/s/AKfycbwsyOOx91roPMyrD2p3aNzlfgXz1m6lqHT7vGMMqqPUNEC96mxemSpPxLdULZRvgxdQvQ/exec',
 
   SITE_NAME: 'ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร',
   SITE_NAME_EN: 'KPP Agri Data Center',
