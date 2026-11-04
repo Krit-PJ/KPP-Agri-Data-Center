@@ -58,7 +58,7 @@
   }
 
   // ---------- tabs ----------
-  const LOADERS = { history: loadHistory, requests: loadRequests, links: loadLinks, admins: loadAdmins, log: loadLog };
+  const LOADERS = { history: loadHistory, requests: loadRequests, links: loadLinks, admins: loadAdmins, log: loadLog, soil: loadSoil, adminreq: loadAdminReq };
   function tab(name) {
     document.querySelectorAll('#adm-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.id === 'tab-' + name));
@@ -248,7 +248,10 @@
   // =====================================================================
   // REQUESTS
   // =====================================================================
-  async function refreshPending() { try { const p = await call('requestList', { status: 'pending' }); $('pending-badge').textContent = p.length || ''; } catch (e) { /* ignore */ } }
+  async function refreshPending() {
+    try { const p = await call('requestList', { status: 'pending' }); $('pending-badge').textContent = p.length || ''; } catch (e) { /* ignore */ }
+    if (S.me && S.me.role === 'super') { try { const a = await call('adminRequestList', { status: 'pending' }); $('areq-badge').textContent = a.length || ''; } catch (e) { /* ignore */ } }
+  }
   async function loadRequests() {
     S.reqs = await call('requestList', { status: S.reqStatus });
     const label = { pending: 'รอพิจารณา', approved: 'อนุมัติแล้ว', rejected: 'ไม่อนุมัติ' };
@@ -288,6 +291,91 @@
   document.body.addEventListener('click', async (e) => {
     const b = e.target.closest('[data-copy]'); if (!b) return;
     try { await navigator.clipboard.writeText(b.dataset.copy); toast('คัดลอกลิงก์แล้ว'); } catch (err) { toast('คัดลอกไม่ได้ กรุณาคัดลอกจากช่องข้อความ'); }
+  });
+
+  // =====================================================================
+  // ADMIN ACCESS REQUESTS (super)
+  // =====================================================================
+  let areqStatus = 'pending';
+  async function loadAdminReq() {
+    const list = await call('adminRequestList', { status: areqStatus });
+    const label = { pending: 'รอพิจารณา', approved: 'อนุมัติแล้ว', rejected: 'ไม่อนุมัติ' };
+    $('areq-list').innerHTML = list.length ? list.map((r) => `<div class="card req" data-id="${esc(r.id)}">
+      <div class="top"><b>${esc(r.name)}</b><span class="muted">${esc(r.position)} · ${esc(r.agency)}</span><span class="st ${r.status}">${label[r.status] || r.status}</span><span class="muted" style="margin-left:auto">${esc(r.id)} · ${esc(r.time)}</span></div>
+      <dl><dt>เบอร์ (ชื่อผู้ใช้)</dt><dd><b>${esc(r.phone)}</b></dd><dt>อีเมล</dt><dd>${esc(r.email || '-')}</dd><dt>เหตุผล</dt><dd>${esc(r.reason || '-')}</dd>
+        ${r.decidedBy ? `<dt>ผู้พิจารณา</dt><dd>${esc(r.decidedBy)} · ${esc(r.decidedAt)}${r.note ? ' · ' + esc(r.note) : ''}</dd>` : ''}</dl>
+      ${r.status === 'pending' ? `<textarea placeholder="หมายเหตุ (จำเป็นเมื่อไม่อนุมัติ)" maxlength="300"></textarea>
+        <div class="row-btns"><button class="btn sm ok" data-adec="approve">✅ อนุมัติเป็น Admin</button><button class="btn sm danger" data-adec="reject">✖ ไม่อนุมัติ</button></div>` : ''}
+      <div class="out"></div></div>`).join('') : '<div class="card pad muted">ไม่มีคำขอ</div>';
+  }
+  $('areq-filter').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-ast]'); if (!b) return;
+    areqStatus = b.dataset.ast;
+    document.querySelectorAll('#areq-filter .chip').forEach((c) => c.classList.toggle('on', c === b));
+    loadAdminReq().catch((err) => toast(err.message));
+  });
+  $('areq-list').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-adec]'); if (!b) return;
+    const card = b.closest('.req'), note = (card.querySelector('textarea') || {}).value || '';
+    if (b.dataset.adec === 'reject' && !note.trim()) return toast('กรุณาระบุเหตุผลที่ไม่อนุมัติ');
+    b.disabled = true;
+    try {
+      const r = await call('adminRequestDecide', { id: card.dataset.id, decision: b.dataset.adec, note });
+      toast(r.message); card.querySelector('.out').innerHTML = `<div class="form-msg ok">${esc(r.message)}</div>`;
+      card.querySelectorAll('[data-adec],textarea').forEach((x) => x.remove()); refreshPending();
+    } catch (err) { toast(err.message); b.disabled = false; }
+  });
+
+  // =====================================================================
+  // ศดปช.
+  // =====================================================================
+  let soil = [], soilFilter = 'pending', soilParsed = null, geo = null;
+  async function loadSoil() {
+    soil = await call('soilList');
+    const rows = soil.filter((c) => !soilFilter || !c.verified);
+    $('soil-admin-table').innerHTML = '<thead><tr><th>ศดปช.</th><th>อำเภอ</th><th>ประเภท</th><th>สมาชิก</th><th>Lat</th><th>Lng</th><th>หมายเหตุ</th><th>ประธาน (เฉพาะผู้ดูแล)</th><th></th></tr></thead><tbody>' +
+      (rows.length ? rows.map((c) => `<tr data-id="${esc(c.id)}"><td><b>${esc(c.name)}</b><br><small class="muted">${esc(c.location)}</small></td><td>${esc(c.district)}</td><td>${esc(c.type)}</td><td class="n">${fmt(c.members)}</td>
+        <td><input data-k="lat" value="${c.lat ?? ''}" inputmode="decimal"></td><td><input data-k="lng" value="${c.lng ?? ''}" inputmode="decimal"></td>
+        <td>${c.verified ? '✅ ยืนยันแล้ว' : '<span class="chk-flag">⚠️ ' + esc(c.note || 'รอตรวจสอบ') + '</span>'}</td>
+        <td>${esc(c.chair || '-')}<br><small class="muted">${esc(c.chair_phone || '')}</small></td>
+        <td><button class="btn xs ok" data-sv="1">${c.verified ? 'บันทึก' : 'บันทึก + ยืนยัน'}</button>
+          ${c.lat !== null ? `<a class="btn xs" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${c.lat},${c.lng}">ดูพิกัด</a>` : ''}</td></tr>`).join('')
+        : '<tr><td colspan="9" class="muted">ไม่มีรายการ' + (soilFilter ? 'ที่รอตรวจสอบ ✅' : '') + '</td></tr>') + '</tbody>';
+  }
+  $('soil-filter').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-sf]'); if (!b) return;
+    soilFilter = b.dataset.sf;
+    document.querySelectorAll('#soil-filter .chip').forEach((c) => c.classList.toggle('on', c === b));
+    loadSoil().catch((err) => toast(err.message));
+  });
+  $('soil-admin-table').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-sv]'); if (!b) return;
+    const tr = b.closest('tr'), v = (k) => tr.querySelector(`[data-k="${k}"]`).value.trim();
+    b.disabled = true;
+    try { toast((await call('soilUpdate', { id: tr.dataset.id, lat: v('lat'), lng: v('lng'), verified: true, note: '' })).message); loadSoil(); }
+    catch (err) { toast(err.message); b.disabled = false; }
+  });
+  $('soil-file').addEventListener('change', async (e) => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    try {
+      if (!geo) geo = await (await fetch('data/kpp_districts.json')).json();
+      const grids = (await toGrids(f)).map((g) => g.grid);
+      const rows = grids.flatMap((g) => SoilParser.parse(g, { geo, districts: S.districts }).rows);
+      if (!rows.length) throw new Error('ไม่พบรายการ ศดปช. ในไฟล์ (ต้องมีหัวตาราง "ชื่อ ศดปช." และพิกัด)');
+      soilParsed = { rows, file: f.name };
+      const pend = rows.filter((r) => !r.verified).length;
+      $('soil-preview').innerHTML = `<div class="chkres"><div class="nums"><span><b>${rows.length}</b>ศูนย์</span><span><b>${fmt(rows.reduce((a, r) => a + r.members, 0))}</b>สมาชิก</span>
+        <span><b>${rows.filter((r) => r.type === 'หลัก').length}</b>หลัก</span><span><b>${rows.filter((r) => r.type === 'เครือข่าย').length}</b>เครือข่าย</span><span><b>${pend}</b>แก้พิกัด/รอตรวจ</span></div>
+        <div class="tbl-wrap"><table class="prev"><thead><tr><th>ศดปช.</th><th>อำเภอ</th><th>ประเภท</th><th>สมาชิก</th><th>พิกัด</th><th>หมายเหตุ</th></tr></thead><tbody>
+        ${rows.map((r) => `<tr class="${r.verified ? '' : 'warn'}"><td>${esc(r.name)}</td><td>${esc(r.district)}</td><td>${esc(r.type)}</td><td class="n">${fmt(r.members)}</td><td>${r.lat ?? '-'}, ${r.lng ?? '-'}</td><td><small>${esc(r.note)}</small></td></tr>`).join('')}
+        </tbody></table></div><div class="row-btns"><button class="btn primary" id="soil-commit">✅ แทนที่ข้อมูล ศดปช. ทั้งชุด (${rows.length} ศูนย์)</button></div></div>`;
+      $('soil-commit').onclick = async () => {
+        if (!confirm('แทนที่ข้อมูล ศดปช. ทั้งหมดด้วยไฟล์นี้? ระบบจะสำรองข้อมูลเดิมไว้')) return;
+        try { toast((await call('soilImport', { rows: soilParsed.rows, fileName: soilParsed.file })).message); $('soil-preview').innerHTML = ''; loadSoil(); }
+        catch (err) { toast(err.message); }
+      };
+    } catch (err) { $('soil-preview').innerHTML = `<div class="form-msg err">${esc(err.message)}</div>`; }
   });
 
   // =====================================================================
@@ -382,6 +470,27 @@
 
   // ---------- start ----------
   if (!API.enabled()) { showLogin(); msg('login-msg', 'ยังไม่ได้ตั้งค่า API_URL ใน assets/js/config.js (ดู docs/DEPLOY.md)', 'err'); return; }
+  function showAreq() { $('login').classList.add('hidden'); $('areq').classList.remove('hidden'); }
+  $('go-areq').addEventListener('click', (e) => { e.preventDefault(); history.replaceState(null, '', '#request-admin'); showAreq(); });
+  $('go-claim').addEventListener('click', async (e) => {
+    e.preventDefault();
+    try { msg('login-msg', (await API.post('superClaimResend', [])).message, 'ok'); } catch (err) { msg('login-msg', err.message, 'err'); }
+  });
+  $('areq-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const d = Object.fromEntries(new FormData(e.target).entries());
+    d.phone = String(d.phone || '').replace(/\D/g, ''); d.consent = !!e.target.elements.consent.checked;
+    if (!/^0\d{9}$/.test(d.phone)) return msg('areq-msg', 'เบอร์โทรศัพท์ต้องมี 10 หลัก', 'err');
+    if (!d.name || !d.position || !d.agency) return msg('areq-msg', 'กรุณากรอกข้อมูลที่มี * ให้ครบ', 'err');
+    if (String(d.password).length < 8) return msg('areq-msg', 'รหัสผ่านต้องยาวอย่างน้อย 8 ตัว', 'err');
+    if (d.password !== d.password2) return msg('areq-msg', 'รหัสผ่านไม่ตรงกัน', 'err');
+    if (!d.consent) return msg('areq-msg', 'กรุณายินยอมการเก็บข้อมูลส่วนบุคคล', 'err');
+    delete d.password2;
+    try { const r = await API.post('adminRequest', [d]); msg('areq-msg', '✅ ' + r.message, 'ok'); e.target.reset(); }
+    catch (err) { msg('areq-msg', err.message, 'err'); }
+  });
+  if (location.hash === '#request-admin') { showAreq(); return; }
+
   const claim = (location.hash.match(/^#claim=([0-9a-f]{64})$/) || [])[1];
   if (claim) {
     $('claim').classList.remove('hidden');

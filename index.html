@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/vendor/leaflet.css" />
-  <link rel="stylesheet" href="assets/css/style.css?v=2.0.1" />
+  <link rel="stylesheet" href="assets/css/style.css?v=2.1.1" />
 </head>
 <body>
   <div id="loading" class="loading"><div class="spinner"></div><p>กำลังโหลดข้อมูล…</p></div>
@@ -19,15 +19,17 @@
     <a class="brand" href="#map" aria-label="หน้าแรก">
       <img class="logo" id="logo-doae" alt="กรมส่งเสริมการเกษตร" />
       <img class="logo" id="logo-prov" alt="ตราจังหวัดกำแพงเพชร" />
-      <span class="brand-txt"><b id="site-name">ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร</b><small>KPP Agri Data Center · สำนักงานเกษตรจังหวัดกำแพงเพชร</small></span>
+      <span class="brand-txt"><b id="site-name">ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร</b><small>KPP Agri Data Center · สำนักงานเกษตรจังหวัดกำแพงเพชร</small><small class="credit">พัฒนาโดย ดร. กิตติ โพธิ์จวง กลุ่มอารักขาพืช สำนักงานเกษตรจังหวัดกำแพงเพชร</small></span>
     </a>
     <nav class="tabs" aria-label="เมนูหลัก">
       <button data-go="map">🗺️ Smart Map</button>
       <button data-go="dashboard">📊 แดชบอร์ด</button>
+      <button data-go="soil">🧪 ศดปช.</button>
       <button data-go="request">📥 ขอข้อมูล</button>
       <button data-go="links">🔗 ระบบเชื่อมโยง</button>
     </nav>
     <div class="counter-chip" id="counter-chip" title="จำนวนการเข้าใช้งาน"></div>
+    <a class="admin-btn" href="admin.html" title="เข้าสู่ระบบผู้ดูแล">🔐<span>ผู้ดูแลระบบ</span></a>
   </header>
 
   <div class="cropbar" id="cropbar" role="tablist" aria-label="เลือกชนิดพืช"></div>
@@ -47,6 +49,9 @@
       <div class="panel-head"><b>ตัวเลือกแผนที่</b><button class="x" id="close-panel" aria-label="ปิด">✕</button></div>
       <div class="panel-sec"><div class="sec-label">ปีเพาะปลูก</div><div class="year-grid" id="map-years"></div></div>
       <div class="panel-sec"><div class="sec-label">ตัวชี้วัด (สีบนแผนที่)</div><div class="metric-list" id="map-metrics"></div></div>
+      <div class="panel-sec"><div class="sec-label">ชั้นข้อมูลจุด</div>
+        <label class="layer-toggle"><input type="checkbox" id="tg-soil" /> <span class="dot main"></span><span class="dot net"></span> ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.) <small id="soil-count"></small></label>
+      </div>
       <div class="panel-sec"><div class="sec-label">แผนที่พื้นหลัง</div><div class="chips" id="basemaps"></div></div>
       <div class="src-badge" id="src-badge"></div>
     </aside>
@@ -71,6 +76,24 @@
       <div class="title-card" id="title-card"></div>
     </main>
     <footer class="foot" id="foot"></footer>
+  </section>
+
+  <!-- ================= ศดปช. ================= -->
+  <section id="view-soil" class="view page" aria-label="ศูนย์จัดการดินปุ๋ยชุมชน">
+    <main class="dash soil-dash">
+      <div class="soil-head card"><div><h2>🧪 ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)</h2><p class="muted" id="soil-src"></p></div>
+        <button class="btn primary" id="soil-to-map">🗺️ ดูบนแผนที่</button></div>
+      <div class="kpis soil-kpis" id="soil-kpis"></div>
+      <div class="card chart-card c-purple"><h3>จำนวนศูนย์รายอำเภอ (หลัก / เครือข่าย)</h3><div class="cv"><canvas id="ch-soil-district"></canvas></div></div>
+      <div class="card chart-card c-yellow"><h3>จำนวนสมาชิกรายอำเภอ (ราย)</h3><div class="cv"><canvas id="ch-soil-members"></canvas></div></div>
+      <div class="card chart-card c-pink"><h3>ปีที่เริ่มดำเนินการ (จำนวนศูนย์)</h3><div class="cv"><canvas id="ch-soil-year"></canvas></div></div>
+      <div class="card soil-table-card">
+        <div class="soil-filter"><input id="soil-q" placeholder="🔍 ค้นหาชื่อศูนย์ ตำบล พืช…" /><select id="soil-d"><option value="">ทุกอำเภอ</option></select>
+          <select id="soil-t"><option value="">ทุกประเภท</option><option>หลัก</option><option>เครือข่าย</option></select></div>
+        <div class="tbl-wrap"><table id="soil-table"></table></div>
+      </div>
+    </main>
+    <footer class="foot" id="soil-foot"></footer>
   </section>
 
   <!-- ================= ขอข้อมูล ================= -->
@@ -121,9 +144,15 @@
     </div>
   </section>
 
+  <footer class="sitefoot" id="sitefoot">
+    <div>© 2569 Dr. Kitti PhoJuang · ข้อมูล: สำนักงานเกษตรจังหวัดกำแพงเพชร</div>
+    <div class="credit2">พัฒนาโดย ดร. กิตติ โพธิ์จวง กลุ่มอารักขาพืช สำนักงานเกษตรจังหวัดกำแพงเพชร · <a href="admin.html">🔐 ผู้ดูแลระบบ</a></div>
+  </footer>
+
   <nav class="bottomnav" aria-label="เมนูหลัก (มือถือ)">
     <button data-go="map"><span>🗺️</span>แผนที่</button>
     <button data-go="dashboard"><span>📊</span>แดชบอร์ด</button>
+    <button data-go="soil"><span>🧪</span>ศดปช.</button>
     <button data-go="request"><span>📥</span>ขอข้อมูล</button>
     <button data-go="links"><span>🔗</span>เชื่อมโยง</button>
   </nav>
@@ -132,13 +161,14 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="assets/js/config.js?v=2.0.1"></script>
-  <script src="assets/js/api.js?v=2.0.1"></script>
-  <script src="assets/js/icons.js?v=2.0.1"></script>
-  <script src="assets/js/data.js?v=2.0.1"></script>
-  <script src="assets/js/map.js?v=2.0.1"></script>
-  <script src="assets/js/dashboard.js?v=2.0.1"></script>
-  <script src="assets/js/request.js?v=2.0.1"></script>
-  <script src="assets/js/app.js?v=2.0.1"></script>
+  <script src="assets/js/config.js?v=2.1.1"></script>
+  <script src="assets/js/api.js?v=2.1.1"></script>
+  <script src="assets/js/icons.js?v=2.1.1"></script>
+  <script src="assets/js/data.js?v=2.1.1"></script>
+  <script src="assets/js/map.js?v=2.1.1"></script>
+  <script src="assets/js/dashboard.js?v=2.1.1"></script>
+  <script src="assets/js/request.js?v=2.1.1"></script>
+  <script src="assets/js/soil.js?v=2.1.1"></script>
+  <script src="assets/js/app.js?v=2.1.1"></script>
 </body>
 </html>

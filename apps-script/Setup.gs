@@ -13,6 +13,8 @@ function setupSystem() {
   ensureSheet_('import_log', IMPORT_HEADERS);
   ensureSheet_('download_requests', REQ_HEADERS).getRange('G:G').setNumberFormat('@');
   ensureSheet_('visit_stats', VISIT_HEADERS).getRange('A:A').setNumberFormat('@');
+  ensureSheet_('admin_requests', AREQ_HEADERS).getRange('C:C').setNumberFormat('@');
+  out.push(ensureSoil_());
   const links = ensureSheet_('links', LINK_HEADERS);
   if (links.getLastRow() < 2) DEFAULT_LINKS.forEach(function (l) { links.appendRow(l.concat([new Date(), 'setupSystem'])); });
   out.push('PASS: ชีตระบบพร้อม');

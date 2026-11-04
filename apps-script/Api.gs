@@ -17,6 +17,13 @@ const API_METHODS = {
   // auth
   adminLogin: { role: null, fn: function (a) { return adminLogin_(a[0]); } },
   adminClaim: { role: null, fn: function (a) { return adminClaim_(a[0]); } },
+  superClaimResend: { role: null, fn: function () { return superClaimResend_(); } },
+  adminRequest: { role: null, fn: function (a) { return adminRequest_(a[0]); } },
+  adminRequestList: { role: 'super', fn: function (a) { return adminRequestList_(a[0]); } },
+  adminRequestDecide: { role: 'super', fn: function (a, s) { return adminRequestDecide_(a[0], s); } },
+  soilList: { role: 'admin', fn: function () { return soilList_(); } },
+  soilImport: { role: 'admin', fn: function (a, s) { return soilImport_(a[0], s); } },
+  soilUpdate: { role: 'admin', fn: function (a, s) { return soilUpdate_(a[0], s); } },
   adminLogout: { role: 'admin', fn: function (a, s, t) { return adminLogout_(t); } },
   adminMe: { role: 'admin', fn: function (a, s) { return { username: s.username, name: s.name, role: s.role, version: APP_VERSION }; } },
   adminChangePassword: { role: 'admin', fn: function (a, s) { return adminChangePassword_(a[0], s); } },

@@ -10,6 +10,8 @@
  *   Requests.gs คำขอดาวน์โหลด → อนุมัติ → ส่งลิงก์ทางอีเมล
  *   Counter.gs  ตัวนับผู้เข้าใช้งาน
  *   Links.gs    ลิงก์เชื่อมโยงเว็บไซต์ (Super Admin แก้ไขได้)
+ *   Soil.gs     ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)  · SoilSeed.gs ข้อมูลตั้งต้น
+ *   AdminRequests.gs  ขอสิทธิ์ Admin → Super Admin อนุมัติ
  *   Setup.gs    setupSystem() — รันครั้งแรก / หลังอัปเดตโค้ด
  *
  * Script Properties ที่ใช้
@@ -17,8 +19,9 @@
  *   SITE_URL               URL หน้าเว็บบน GitHub Pages (ใช้สร้างลิงก์ดาวน์โหลดในอีเมล)
  *   NOTIFY_EMAIL           อีเมลรับแจ้งเตือนคำขอใหม่ (ไม่ตั้ง = อีเมลเจ้าของสคริปต์)
  *   SUPER_ADMIN_USERNAME / SUPER_ADMIN_PASSWORD  ใช้ครั้งแรกเท่านั้น รหัสผ่านถูกลบทันทีหลังเก็บ hash
+ *   ADMIN_PREAPPROVED_PHONES  เบอร์ Admin ที่อนุมัติล่วงหน้า (คั่นด้วย ,)
  */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const DEFAULT_SPREADSHEET_ID = '1trKwin7IaNLYQtoxzWZr2wMo2fPGxhynmEzIvLg7DYE';
 const DEFAULT_SITE_URL = 'https://krit-pj.github.io/KPP-Agri-Data-Center/';
 

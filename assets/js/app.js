@@ -2,8 +2,8 @@
 (async function () {
   const C = window.APP_CONFIG;
   const D = window.AgriData;
-  const VIEWS = ['map', 'dashboard', 'request', 'links'];
-  const state = { crop: null, year: null, years: [], metric: 'planted', openDistrict: null };
+  const VIEWS = ['map', 'dashboard', 'soil', 'request', 'links'];
+  const state = { crop: null, year: null, years: [], metric: 'planted', openDistrict: null, soil: false };
 
   // โลโก้
   const setLogo = (id, src) => { const el = document.getElementById(id); el.src = src; el.onerror = () => el.classList.add('err'); };
@@ -32,12 +32,14 @@
     if (ys.length) state.years = ys;
     else if (!state.years.length) state.years = [latest - 1, latest];
     if (q.get('metric') && D.METRICS[q.get('metric')]) state.metric = q.get('metric');
+    if (q.has('soil')) state.soil = q.get('soil') === '1';
   }
   applyQuery(parseHash().q);
 
   SmartMap.init(ctx, state);
   Dashboard.init(ctx, state);
   RequestForm.init(ctx);
+  SoilView.init(ctx);
 
   // ---------- แถบไอคอนพืช (ใช้ร่วมกันทั้งแผนที่และแดชบอร์ด) ----------
   function renderCropbar() {
@@ -54,7 +56,7 @@
     const q = new URLSearchParams();
     if (view === 'map' || view === 'dashboard') {
       q.set('crop', state.crop);
-      if (view === 'map') { q.set('year', state.year); q.set('metric', state.metric); } else q.set('years', [...state.years].sort().join(','));
+      if (view === 'map') { q.set('year', state.year); q.set('metric', state.metric); if (state.soil) q.set('soil', '1'); } else q.set('years', [...state.years].sort().join(','));
     }
     const h = '#' + view + (q.toString() ? '?' + q.toString() : '');
     if (location.hash !== h) history.replaceState(null, '', location.pathname + location.search + h);
@@ -62,6 +64,7 @@
   function show(view) {
     const changed = current !== view;
     current = view;
+    document.body.dataset.view = view;
     document.querySelectorAll('.view').forEach((s) => s.classList.toggle('active', s.id === 'view-' + view));
     document.querySelectorAll('[data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === view));
     document.getElementById('cropbar').classList.toggle('hidden', !(view === 'map' || view === 'dashboard'));
@@ -69,10 +72,12 @@
     if (view === 'map') { SmartMap.render(); SmartMap.invalidate(); }
     if (view === 'dashboard') Dashboard.render();
     if (view === 'links') renderLinks();
+    if (view === 'soil') SoilView.render();
     if (changed) window.scrollTo(0, 0);
     writeHash(view);
   }
   window.addEventListener('hashchange', () => { const h = parseHash(); applyQuery(h.q); show(h.view); });
+  window.App = { state, go: (v) => show(v), writeHash: () => writeHash(current) };
 
   // ---------- events ----------
   document.body.addEventListener('click', (e) => {

@@ -4,7 +4,7 @@
   "private": true,
   "description": "ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร — GitHub Pages + Google Apps Script",
   "scripts": {
-    "test": "node --test tests/backend.test.js tests/importer.test.js",
+    "test": "node --test tests/backend.test.js tests/importer.test.js tests/soil.test.js",
     "dev": "node tests/dev-server.js 8790",
     "build:gas": "node tests/build-gas.js"
   },

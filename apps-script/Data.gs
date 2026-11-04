@@ -1,5 +1,5 @@
 /** อ่านข้อมูลจากชีต data / districts, cache, และชีตมุมมองรายพืช */
-const BOOT_CACHE_KEY = 'boot:v2';
+const BOOT_CACHE_KEY = 'boot:v2.1';
 const BOOT_CACHE_SECONDS = 600;
 
 /** คืนแถว data เป็น array ตามลำดับ DATA_HEADERS (ตัวเลขแปลงแล้ว) */
@@ -38,7 +38,8 @@ function bootstrap_() {
     rows: rows,
     districts: readDistricts_(),
     crops: cropList_(rows),
-    links: linkList_(false)
+    links: linkList_(false),
+    soil: soilPublic_()
   };
   cachePutBig_(BOOT_CACHE_KEY, JSON.stringify(out), BOOT_CACHE_SECONDS);
   return out;

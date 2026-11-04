@@ -24,13 +24,14 @@
   }
 
   async function load() {
-    let source = 'api', rows, districts, links = C.DEFAULT_LINKS, updated = null;
+    let source = 'api', rows, districts, links = C.DEFAULT_LINKS, updated = null, soil = null;
     try {
       const b = await API.get('bootstrap');
       rows = b.rows.map((r) => Object.fromEntries(b.cols.map((c, i) => [c, r[i]])));
       districts = b.districts;
       links = b.links && b.links.length ? b.links : links;
       updated = b.updated;
+      soil = b.soil || null;
     } catch (e) {
       console.warn('[data] ใช้ไฟล์สำรอง:', e.message);
       source = 'fallback';
@@ -40,6 +41,8 @@
     rows.forEach((r) => { r.district_code = String(r.district_code); r.year = +r.year; });
     districts.forEach((d) => { d.district_code = String(d.district_code); });
     const geo = await (await fetch(C.GEOJSON)).json();
+    if (!soil) { try { soil = (await (await fetch(C.FALLBACK_SOIL)).json()).rows; } catch (e) { soil = []; } }
+    soil.forEach((c) => { c.district_code = String(c.district_code); c.members = +c.members || 0; });
     rows = rows.filter((r) => r.crop && r.year);
     // ปีที่ทั้งจังหวัดเป็น 0 หมด = ยังไม่มีข้อมูล (ไม่แสดงเป็นลดลง 100%)
     const tot = {};
@@ -47,7 +50,7 @@
     rows = rows.filter((r) => tot[r.crop + '|' + r.year] > 0);
     const present = new Set(rows.map((r) => r.crop));
     const crops = C.CROPS.filter((c) => present.has(c)).concat([...present].filter((c) => !C.CROPS.includes(c)).sort());
-    return { rows, districts, geo, crops, links, source, updated };
+    return { rows, districts, geo, crops, links, source, updated, soil };
   }
 
   // ---------- Measures (เทียบ DAX ใน docs/DAX_to_JS.md) ----------

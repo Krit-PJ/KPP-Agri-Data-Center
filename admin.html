@@ -8,13 +8,13 @@
   <title>ผู้ดูแลระบบ | KPP Agri Data Center</title>
   <link rel="icon" href="assets/img/logo-doae.png" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/style.css?v=2.0.1" />
-  <link rel="stylesheet" href="assets/css/admin.css?v=2.0.1" />
+  <link rel="stylesheet" href="assets/css/style.css?v=2.1.1" />
+  <link rel="stylesheet" href="assets/css/admin.css?v=2.1.1" />
 </head>
 <body class="adm">
   <header class="appbar">
     <a class="brand" href="./"><img class="logo" src="assets/img/logo-doae.png" alt="กรมส่งเสริมการเกษตร" /><img class="logo" src="assets/img/seal-kpp.png" alt="ตราจังหวัดกำแพงเพชร" />
-      <span class="brand-txt"><b>ผู้ดูแลระบบ</b><small>KPP Agri Data Center</small></span></a>
+      <span class="brand-txt"><b>ผู้ดูแลระบบ</b><small>KPP Agri Data Center · สำนักงานเกษตรจังหวัดกำแพงเพชร</small><small class="credit">พัฒนาโดย ดร. กิตติ โพธิ์จวง กลุ่มอารักขาพืช สำนักงานเกษตรจังหวัดกำแพงเพชร</small></span></a>
     <div class="who" id="who"></div>
   </header>
 
@@ -22,11 +22,35 @@
   <section id="login" class="narrow hidden">
     <form class="card form-card login-card" id="login-form">
       <h2>🔐 เข้าสู่ระบบผู้ดูแล</h2>
-      <label>ชื่อผู้ใช้ <small>(Admin ใช้เบอร์โทรศัพท์)</small><input name="username" autocomplete="username" required /></label>
+      <label>ชื่อผู้ใช้ หรือ เบอร์โทรศัพท์ <small>(Admin ใช้เบอร์โทร 10 หลัก)</small><input name="username" autocomplete="username" inputmode="text" required /></label>
       <label>รหัสผ่าน<input name="password" type="password" autocomplete="current-password" required /></label>
       <div class="form-msg" id="login-msg"></div>
       <button class="btn primary" type="submit">เข้าสู่ระบบ</button>
       <p class="muted small">ลืมรหัสผ่าน: ติดต่อ Super Admin เพื่อตั้งรหัสผ่านใหม่</p>
+      <div class="login-links"><a href="#request-admin" id="go-areq">🙋 ขอสิทธิ์ผู้ดูแลระบบ (Admin)</a>
+        <a href="#" id="go-claim" class="muted small">ส่งลิงก์ตั้งรหัสผ่าน Super Admin อีกครั้ง</a></div>
+    </form>
+  </section>
+
+  <!-- ขอสิทธิ์ Admin -->
+  <section id="areq" class="narrow hidden">
+    <form class="card form-card" id="areq-form" novalidate>
+      <h2>🙋 ขอสิทธิ์ผู้ดูแลระบบ (Admin)</h2>
+      <p class="muted">Admin เข้าสู่ระบบด้วย <b>เบอร์โทรศัพท์</b> และ <b>รหัสผ่านที่ตั้งในแบบฟอร์มนี้</b> คำขอจะใช้งานได้เมื่อ Super Admin อนุมัติ · รหัสผ่านถูกเข้ารหัสทันที ผู้อนุมัติไม่เห็นรหัสผ่าน</p>
+      <div class="grid2">
+        <label>เบอร์โทรศัพท์ (ใช้เป็นชื่อผู้ใช้) *<input name="phone" inputmode="tel" maxlength="12" required placeholder="0812345678" /></label>
+        <label>ชื่อ-สกุล *<input name="name" maxlength="120" required /></label>
+        <label>ตำแหน่ง *<input name="position" maxlength="120" required /></label>
+        <label>หน่วยงาน *<input name="agency" maxlength="200" required /></label>
+        <label>อีเมล <small>(รับแจ้งผลการอนุมัติ)</small><input name="email" type="email" maxlength="120" /></label>
+        <label>เหตุผลที่ขอสิทธิ์<input name="reason" maxlength="500" placeholder="เช่น นำเข้าข้อมูลของอำเภอ…" /></label>
+        <label>ตั้งรหัสผ่าน * <small>(อย่างน้อย 8 ตัว)</small><input name="password" type="password" autocomplete="new-password" required /></label>
+        <label>ยืนยันรหัสผ่าน *<input name="password2" type="password" autocomplete="new-password" required /></label>
+      </div>
+      <input name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true" />
+      <label class="consent"><input type="checkbox" name="consent" /> ยินยอมให้เก็บข้อมูลข้างต้นเพื่อพิจารณาสิทธิ์และบันทึกการใช้งานระบบ ตาม พ.ร.บ.คุ้มครองข้อมูลส่วนบุคคล พ.ศ. 2562</label>
+      <div class="form-msg" id="areq-msg"></div>
+      <div class="row-btns"><button class="btn primary" type="submit">ส่งคำขอ</button><a class="btn" href="admin.html">กลับไปหน้าเข้าสู่ระบบ</a></div>
     </form>
   </section>
 
@@ -48,6 +72,8 @@
       <button data-tab="import">📤 นำเข้าข้อมูล</button>
       <button data-tab="history">🕘 ประวัติการนำเข้า</button>
       <button data-tab="requests">📥 คำขอดาวน์โหลด <span class="badge" id="pending-badge"></span></button>
+      <button data-tab="soil">🧪 ศดปช.</button>
+      <button data-tab="adminreq" data-super>🙋 คำขอสิทธิ์ Admin <span class="badge" id="areq-badge"></span></button>
       <button data-tab="links" data-super>🔗 ลิงก์เชื่อมโยง</button>
       <button data-tab="admins" data-super>👥 ผู้ดูแลระบบ</button>
       <button data-tab="log" data-super>📜 บันทึก/สถิติ</button>
@@ -89,6 +115,27 @@
           <button class="chip" data-st="rejected">ไม่อนุมัติ</button><button class="chip" data-st="">ทั้งหมด</button>
         </div>
         <div id="req-list"></div>
+      </div>
+
+      <!-- SOIL -->
+      <div class="tab" id="tab-soil">
+        <div class="card pad"><h3>ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)</h3>
+          <p class="muted">แก้พิกัดแล้วกด "ยืนยัน" สำหรับศูนย์ที่ระบบแก้พิกัดให้อัตโนมัติ · ชื่อและเบอร์ประธานเห็นเฉพาะผู้ดูแล ไม่แสดงบนเว็บสาธารณะ</p>
+          <div class="chips" id="soil-filter"><button class="chip on" data-sf="pending">รอตรวจสอบ</button><button class="chip" data-sf="">ทั้งหมด</button></div>
+          <div class="tbl-wrap tall"><table id="soil-admin-table"></table></div>
+        </div>
+        <div class="card pad"><h3>นำเข้าทำเนียบ ศดปช. (แทนที่ทั้งชุด)</h3>
+          <p class="muted">ไฟล์ Excel/CSV รูปแบบทำเนียบ ศดปช. ระบบแก้พิกัดที่สลับ lat/long แปลง UTM 47N และหาอำเภอจากพิกัดให้ · สำรองข้อมูลเดิมไว้ทุกครั้ง</p>
+          <label class="drop"><input type="file" id="soil-file" accept=".xlsx,.xls,.csv" /><span>📂 เลือกไฟล์ทำเนียบ ศดปช.</span></label>
+          <div id="soil-preview"></div>
+        </div>
+      </div>
+
+      <!-- ADMIN REQUESTS (super) -->
+      <div class="tab" id="tab-adminreq">
+        <div class="chips" id="areq-filter"><button class="chip on" data-ast="pending">รอพิจารณา</button><button class="chip" data-ast="approved">อนุมัติแล้ว</button>
+          <button class="chip" data-ast="rejected">ไม่อนุมัติ</button><button class="chip" data-ast="">ทั้งหมด</button></div>
+        <div id="areq-list"></div>
       </div>
 
       <!-- LINKS -->
@@ -143,14 +190,17 @@
       </div>
     </div>
   </section>
+  <footer class="sitefoot"><div>© 2569 Dr. Kitti PhoJuang · ข้อมูล: สำนักงานเกษตรจังหวัดกำแพงเพชร</div>
+    <div class="credit2">พัฒนาโดย ดร. กิตติ โพธิ์จวง กลุ่มอารักขาพืช สำนักงานเกษตรจังหวัดกำแพงเพชร · <a href="./">กลับหน้าแรก</a></div></footer>
   <div class="toast" id="toast" role="status"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="assets/js/config.js?v=2.0.1"></script>
-  <script src="assets/js/api.js?v=2.0.1"></script>
-  <script src="assets/js/icons.js?v=2.0.1"></script>
-  <script src="assets/js/admin/importer.js?v=2.0.1"></script>
-  <script src="assets/js/admin/admin.js?v=2.0.1"></script>
+  <script src="assets/js/config.js?v=2.1.1"></script>
+  <script src="assets/js/api.js?v=2.1.1"></script>
+  <script src="assets/js/icons.js?v=2.1.1"></script>
+  <script src="assets/js/admin/soil-parser.js?v=2.1.1"></script>
+  <script src="assets/js/admin/importer.js?v=2.1.1"></script>
+  <script src="assets/js/admin/admin.js?v=2.1.1"></script>
 </body>
 </html>

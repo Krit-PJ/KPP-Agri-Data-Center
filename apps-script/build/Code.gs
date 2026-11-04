@@ -13,6 +13,8 @@
  *   Requests.gs คำขอดาวน์โหลด → อนุมัติ → ส่งลิงก์ทางอีเมล
  *   Counter.gs  ตัวนับผู้เข้าใช้งาน
  *   Links.gs    ลิงก์เชื่อมโยงเว็บไซต์ (Super Admin แก้ไขได้)
+ *   Soil.gs     ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)  · SoilSeed.gs ข้อมูลตั้งต้น
+ *   AdminRequests.gs  ขอสิทธิ์ Admin → Super Admin อนุมัติ
  *   Setup.gs    setupSystem() — รันครั้งแรก / หลังอัปเดตโค้ด
  *
  * Script Properties ที่ใช้
@@ -20,8 +22,9 @@
  *   SITE_URL               URL หน้าเว็บบน GitHub Pages (ใช้สร้างลิงก์ดาวน์โหลดในอีเมล)
  *   NOTIFY_EMAIL           อีเมลรับแจ้งเตือนคำขอใหม่ (ไม่ตั้ง = อีเมลเจ้าของสคริปต์)
  *   SUPER_ADMIN_USERNAME / SUPER_ADMIN_PASSWORD  ใช้ครั้งแรกเท่านั้น รหัสผ่านถูกลบทันทีหลังเก็บ hash
+ *   ADMIN_PREAPPROVED_PHONES  เบอร์ Admin ที่อนุมัติล่วงหน้า (คั่นด้วย ,)
  */
-const APP_VERSION = '2.0.0';
+const APP_VERSION = '2.1.0';
 const DEFAULT_SPREADSHEET_ID = '1trKwin7IaNLYQtoxzWZr2wMo2fPGxhynmEzIvLg7DYE';
 const DEFAULT_SITE_URL = 'https://krit-pj.github.io/KPP-Agri-Data-Center/';
 
@@ -141,6 +144,123 @@ function cacheRemoveBig_(key) {
   cache.removeAll(keys);
 }
 
+// ===================== AdminRequests.gs =====================
+/**
+ * ขอสิทธิ์ Admin: ผู้ขอกรอกแบบฟอร์ม (เบอร์โทร = ชื่อผู้ใช้ + รหัสผ่านที่ตั้งเอง) → Super Admin อนุมัติ
+ * รหัสผ่านถูก hash ตั้งแต่ตอนส่งคำขอ ผู้อนุมัติไม่เห็นรหัสผ่าน
+ * เบอร์ที่อนุมัติล่วงหน้า: Script Property ADMIN_PREAPPROVED_PHONES (คั่นด้วย ,) — ส่งคำขอแล้วใช้งานได้ทันที
+ */
+const AREQ_HEADERS = ['Request_ID', 'Time', 'Phone', 'Name', 'Position', 'Agency', 'Email', 'Reason', 'Pass_Hash', 'Salt', 'Status', 'Decided_By', 'Decided_At', 'Note'];
+
+function preapprovedPhones_() {
+  return prop_('ADMIN_PREAPPROVED_PHONES').split(/[,\s]+/).map(normalizePhone_).filter(function (p) { return /^0\d{9}$/.test(p); });
+}
+
+function adminRequest_(input) {
+  input = input || {};
+  if (input.website) throw new Error('คำขอไม่ถูกต้อง');
+  const phone = normalizePhone_(input.phone);
+  const f = { name: cleanText_(input.name, 120), position: cleanText_(input.position, 120), agency: cleanText_(input.agency, 200),
+    email: cleanText_(input.email, 120).toLowerCase(), reason: cleanText_(input.reason, 500) };
+  if (!/^0\d{9}$/.test(phone)) throw new Error('เบอร์โทรศัพท์ต้องมี 10 หลัก ขึ้นต้นด้วย 0');
+  if (!f.name || !f.position || !f.agency) throw new Error('กรุณากรอก ชื่อ-สกุล ตำแหน่ง และหน่วยงาน');
+  if (f.email && !validEmail_(f.email)) throw new Error('อีเมลไม่ถูกต้อง');
+  const pw = validatePassword_(input.password);
+  if (!input.consent) throw new Error('กรุณายินยอมการเก็บข้อมูลส่วนบุคคล');
+  const cache = CacheService.getScriptCache();
+  const rk = 'areq:' + phone;
+  if (Number(cache.get(rk) || 0) >= 3) throw new Error('ส่งคำขอบ่อยเกินไป กรุณาลองใหม่ภายหลัง');
+  cache.put(rk, String(Number(cache.get(rk) || 0) + 1), 3600);
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let id, pre;
+  try {
+    if (adminRecord_(phone)) throw new Error('เบอร์นี้มีบัญชีผู้ดูแลแล้ว กรุณาเข้าสู่ระบบ หรือติดต่อ Super Admin เพื่อตั้งรหัสผ่านใหม่');
+    const sh = ensureSheet_('admin_requests', AREQ_HEADERS);
+    if (dataRows_(sh).some(function (r) { return normalizePhone_(r[2]) === phone && r[10] === 'pending'; })) throw new Error('มีคำขอของเบอร์นี้รอพิจารณาอยู่แล้ว');
+    pre = preapprovedPhones_().indexOf(phone) >= 0;
+    const salt = Utilities.getUuid();
+    id = 'ADM-' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd') + '-' + Utilities.getUuid().slice(0, 4).toUpperCase();
+    sh.appendRow([id, new Date(), phone, f.name, f.position, f.agency, f.email, f.reason, hashPassword_(salt, pw), salt,
+      pre ? 'approved' : 'pending', pre ? 'อนุมัติล่วงหน้า (ADMIN_PREAPPROVED_PHONES)' : '', pre ? new Date() : '', '']);
+    sh.getRange(sh.getLastRow(), 3).setNumberFormat('@').setValue(phone);
+    if (pre) createAdminFromRequest_(sh.getLastRow(), { username: phone, name: 'ระบบ', role: 'super' });
+  } finally {
+    lock.releaseLock();
+  }
+  try {
+    const to = prop_('NOTIFY_EMAIL') || Session.getEffectiveUser().getEmail();
+    MailApp.sendEmail({ to: to, subject: '[KPP Agri Data Center] ' + (pre ? 'เพิ่ม Admin (อนุมัติล่วงหน้า) ' : 'คำขอสิทธิ์ Admin ใหม่ ') + id,
+      body: 'ชื่อ: ' + f.name + '\nตำแหน่ง: ' + f.position + '\nหน่วยงาน: ' + f.agency + '\nเบอร์โทร: ' + phone + '\nเหตุผล: ' + f.reason +
+        '\n\n' + (pre ? 'เบอร์นี้อยู่ในรายการอนุมัติล่วงหน้า ใช้งานได้ทันที' : 'พิจารณาได้ที่ ' + siteUrl_() + 'admin.html#adminreq') });
+  } catch (e) { /* ไม่กระทบคำขอ */ }
+  return { requestId: id, approved: pre,
+    message: pre ? 'ลงทะเบียนสำเร็จ เข้าสู่ระบบได้ทันทีด้วยเบอร์ ' + phone + ' และรหัสผ่านที่ตั้งไว้'
+      : 'ส่งคำขอแล้ว เลขที่ ' + id + ' รอ Super Admin อนุมัติ' + (f.email ? ' ระบบจะแจ้งผลทางอีเมล' : '') };
+}
+
+function createAdminFromRequest_(row, s) {
+  const sh = sheetByName_('admin_requests');
+  const r = sh.getRange(row, 1, 1, AREQ_HEADERS.length).getValues()[0];
+  const phone = normalizePhone_(r[2]);
+  if (adminRecord_(phone)) throw new Error('เบอร์นี้มีบัญชีผู้ดูแลแล้ว');
+  const ad = sheetByName_('admins');
+  const now = new Date();
+  ad.appendRow([phone, text_(r[3]) + ' (' + text_(r[4]) + ', ' + text_(r[5]) + ')', 'admin', 'active', r[8], r[9], now, s.name + ' (' + s.username + ')', '', now, phone]);
+  ad.getRange(ad.getLastRow(), 1).setNumberFormat('@').setValue(phone);
+  ad.getRange(ad.getLastRow(), 11).setNumberFormat('@').setValue(phone);
+  sh.getRange(row, 9, 1, 2).setValues([['', '']]); // ลบ hash ออกจากชีตคำขอเมื่อย้ายไปบัญชีแล้ว
+  audit_(s, 'admin_request_approve', r[0] + ' ' + phone);
+}
+
+function adminRequestList_(input) {
+  const status = String((input && input.status) || '');
+  return dataRows_(ensureSheet_('admin_requests', AREQ_HEADERS)).map(function (r, i) {
+    return { row: i + 2, id: text_(r[0]), time: dateTime_(r[1]), phone: normalizePhone_(r[2]), name: text_(r[3]), position: text_(r[4]), agency: text_(r[5]),
+      email: text_(r[6]), reason: text_(r[7]), status: text_(r[10]), decidedBy: text_(r[11]), decidedAt: dateTime_(r[12]), note: text_(r[13]) };
+  }).filter(function (x) { return !status || x.status === status; }).reverse();
+}
+
+function adminRequestDecide_(input, s) {
+  input = input || {};
+  const approve = input.decision === 'approve';
+  if (['approve', 'reject'].indexOf(input.decision) < 0) throw new Error('การพิจารณาไม่ถูกต้อง');
+  const note = cleanText_(input.note, 300);
+  if (!approve && !note) throw new Error('กรุณาระบุเหตุผลที่ไม่อนุมัติ');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  let req;
+  try {
+    const sh = sheetByName_('admin_requests');
+    req = adminRequestList_({}).find(function (x) { return x.id === String(input.id || ''); });
+    if (!req) throw new Error('ไม่พบคำขอ');
+    if (req.status !== 'pending') throw new Error('คำขอนี้พิจารณาไปแล้ว');
+    if (approve) createAdminFromRequest_(req.row, s);
+    sh.getRange(req.row, 11, 1, 4).setValues([[approve ? 'approved' : 'rejected', s.name + ' (' + s.username + ')', new Date(), note]]);
+    if (!approve) { sh.getRange(req.row, 9, 1, 2).setValues([['', '']]); audit_(s, 'admin_request_reject', req.id + ' ' + req.phone); }
+  } finally {
+    lock.releaseLock();
+  }
+  if (req.email) {
+    try {
+      MailApp.sendEmail({ to: req.email, subject: '[KPP Agri Data Center] ผลการขอสิทธิ์ผู้ดูแลระบบ ' + req.id,
+        body: approve ? 'คำขอได้รับการอนุมัติแล้ว เข้าสู่ระบบที่ ' + siteUrl_() + 'admin.html ด้วยเบอร์ ' + req.phone + ' และรหัสผ่านที่ตั้งไว้'
+          : 'คำขอไม่ได้รับการอนุมัติ\nเหตุผล: ' + note });
+    } catch (e) { /* ignore */ }
+  }
+  return { message: approve ? 'อนุมัติแล้ว ' + req.phone + ' เข้าสู่ระบบได้ทันที' : 'ไม่อนุมัติแล้ว' };
+}
+
+/** ส่งลิงก์ตั้งรหัสผ่าน Super Admin ใหม่ (ทำงานเฉพาะเมื่อยังไม่มี Super Admin ที่ตั้งรหัสผ่านแล้ว อีเมลไปที่เจ้าของสคริปต์เท่านั้น) */
+function superClaimResend_() {
+  const sh = sheetByName_('admins');
+  if (dataRows_(sh).some(function (r) { return text_(r[2]) === 'super' && text_(r[3]) !== 'disabled' && r[4]; })) throw new Error('มี Super Admin แล้ว');
+  const props = PropertiesService.getScriptProperties();
+  props.deleteProperty('SUPER_CLAIM_EXPIRES');
+  return { message: sendSuperClaim_(normalizeUsername_(props.getProperty('SUPER_ADMIN_USERNAME') || DEFAULT_SUPER_USERNAME)).replace(/^INFO: /, '') };
+}
+
 // ===================== Api.gs =====================
 /**
  * จุดเข้าของ Web App
@@ -161,6 +281,13 @@ const API_METHODS = {
   // auth
   adminLogin: { role: null, fn: function (a) { return adminLogin_(a[0]); } },
   adminClaim: { role: null, fn: function (a) { return adminClaim_(a[0]); } },
+  superClaimResend: { role: null, fn: function () { return superClaimResend_(); } },
+  adminRequest: { role: null, fn: function (a) { return adminRequest_(a[0]); } },
+  adminRequestList: { role: 'super', fn: function (a) { return adminRequestList_(a[0]); } },
+  adminRequestDecide: { role: 'super', fn: function (a, s) { return adminRequestDecide_(a[0], s); } },
+  soilList: { role: 'admin', fn: function () { return soilList_(); } },
+  soilImport: { role: 'admin', fn: function (a, s) { return soilImport_(a[0], s); } },
+  soilUpdate: { role: 'admin', fn: function (a, s) { return soilUpdate_(a[0], s); } },
   adminLogout: { role: 'admin', fn: function (a, s, t) { return adminLogout_(t); } },
   adminMe: { role: 'admin', fn: function (a, s) { return { username: s.username, name: s.name, role: s.role, version: APP_VERSION }; } },
   adminChangePassword: { role: 'admin', fn: function (a, s) { return adminChangePassword_(a[0], s); } },
@@ -528,7 +655,7 @@ function visitStats_(days) {
 
 // ===================== Data.gs =====================
 /** อ่านข้อมูลจากชีต data / districts, cache, และชีตมุมมองรายพืช */
-const BOOT_CACHE_KEY = 'boot:v2';
+const BOOT_CACHE_KEY = 'boot:v2.1';
 const BOOT_CACHE_SECONDS = 600;
 
 /** คืนแถว data เป็น array ตามลำดับ DATA_HEADERS (ตัวเลขแปลงแล้ว) */
@@ -567,7 +694,8 @@ function bootstrap_() {
     rows: rows,
     districts: readDistricts_(),
     crops: cropList_(rows),
-    links: linkList_(false)
+    links: linkList_(false),
+    soil: soilPublic_()
   };
   cachePutBig_(BOOT_CACHE_KEY, JSON.stringify(out), BOOT_CACHE_SECONDS);
   return out;
@@ -982,6 +1110,8 @@ function setupSystem() {
   ensureSheet_('import_log', IMPORT_HEADERS);
   ensureSheet_('download_requests', REQ_HEADERS).getRange('G:G').setNumberFormat('@');
   ensureSheet_('visit_stats', VISIT_HEADERS).getRange('A:A').setNumberFormat('@');
+  ensureSheet_('admin_requests', AREQ_HEADERS).getRange('C:C').setNumberFormat('@');
+  out.push(ensureSoil_());
   const links = ensureSheet_('links', LINK_HEADERS);
   if (links.getLastRow() < 2) DEFAULT_LINKS.forEach(function (l) { links.appendRow(l.concat([new Date(), 'setupSystem'])); });
   out.push('PASS: ชีตระบบพร้อม');
@@ -1011,3 +1141,131 @@ function autoSetup_() {
   if (!lock.tryLock(25000)) return;
   try { if (prop_('SETUP_VERSION') !== APP_VERSION) setupSystem(); } finally { lock.releaseLock(); }
 }
+
+// ===================== Soil.gs =====================
+/**
+ * ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)
+ * ชีต soil_centers — ข้อมูลประธานศูนย์ (ชื่อ/เบอร์) เก็บในชีตเท่านั้น ไม่ส่งออกทาง API สาธารณะ
+ */
+const SOIL_SHEET = 'soil_centers';
+const SOIL_HEADERS = ['Center_ID', 'Name', 'District_Code', 'District', 'Location', 'Lat', 'Lng', 'Type', 'Level', 'Members', 'Year_Start', 'Fund',
+  'Crops', 'Network', 'Organic', 'Products', 'OSS', 'OSS_Status', 'Chair', 'Chair_Phone', 'Note', 'Verified', 'Updated_At', 'Updated_By'];
+const SOIL_PUBLIC = ['id', 'name', 'district_code', 'district', 'location', 'lat', 'lng', 'type', 'level', 'members', 'year_start', 'fund',
+  'crops', 'network', 'organic', 'products', 'oss', 'oss_status', 'note', 'verified'];
+const SOIL_KEYS = ['id', 'name', 'district_code', 'district', 'location', 'lat', 'lng', 'type', 'level', 'members', 'year_start', 'fund',
+  'crops', 'network', 'organic', 'products', 'oss', 'oss_status', 'chair', 'chair_phone', 'note', 'verified'];
+
+function soilRowToObj_(r) {
+  const o = {};
+  SOIL_KEYS.forEach(function (k, i) { o[k] = r[i]; });
+  o.id = text_(o.id); o.district_code = String(o.district_code).replace(/\.0$/, '');
+  o.lat = o.lat === '' ? null : Number(o.lat); o.lng = o.lng === '' ? null : Number(o.lng);
+  o.members = Number(o.members) || 0; o.year_start = Number(o.year_start) || null; o.fund = Number(o.fund) || 0;
+  o.verified = o.verified === true || String(o.verified).toUpperCase() === 'TRUE';
+  ['name', 'district', 'location', 'type', 'level', 'crops', 'network', 'organic', 'products', 'oss', 'oss_status', 'chair', 'note'].forEach(function (k) { o[k] = text_(o[k]); });
+  o.chair_phone = text_(o.chair_phone);
+  return o;
+}
+
+function soilAll_() {
+  const sh = spreadsheet_().getSheetByName(SOIL_SHEET);
+  if (!sh) return [];
+  return dataRows_(sh).filter(function (r) { return r[0] && r[1]; }).map(soilRowToObj_);
+}
+
+/** สำหรับหน้าเว็บสาธารณะ: ไม่มีชื่อ/เบอร์ประธาน */
+function soilPublic_() {
+  return soilAll_().map(function (o) { const p = {}; SOIL_PUBLIC.forEach(function (k) { p[k] = o[k]; }); return p; });
+}
+
+function soilObjToRow_(o, by) {
+  return [o.id, cleanText_(o.name, 200), String(o.district_code || ''), cleanText_(o.district, 60), cleanText_(o.location, 200),
+    o.lat === null || o.lat === undefined || o.lat === '' ? '' : Number(o.lat), o.lng === null || o.lng === undefined || o.lng === '' ? '' : Number(o.lng),
+    cleanText_(o.type, 20), cleanText_(o.level, 2), Number(o.members) || 0, Number(o.year_start) || '', Number(o.fund) || 0,
+    cleanText_(o.crops, 200), cleanText_(o.network, 400), cleanText_(o.organic, 200), cleanText_(o.products, 300),
+    cleanText_(o.oss, 20), cleanText_(o.oss_status, 40), cleanText_(o.chair, 120), cleanText_(o.chair_phone, 40),
+    cleanText_(o.note, 400), o.verified === true, new Date(), by];
+}
+
+function validateSoil_(o) {
+  const e = [];
+  if (!cleanText_(o.name, 200)) e.push('ไม่มีชื่อ ศดปช.');
+  if (['หลัก', 'เครือข่าย', ''].indexOf(String(o.type || '')) < 0) e.push('ประเภทต้องเป็น หลัก หรือ เครือข่าย');
+  const hasLat = o.lat !== null && o.lat !== undefined && o.lat !== '';
+  if (hasLat && !(Number(o.lat) > 5 && Number(o.lat) < 21 && Number(o.lng) > 97 && Number(o.lng) < 106)) e.push('พิกัดไม่อยู่ในประเทศไทย');
+  if (Number(o.members) < 0 || isNaN(Number(o.members || 0))) e.push('จำนวนสมาชิกไม่ถูกต้อง');
+  return e;
+}
+
+/** ติดตั้งข้อมูลตั้งต้นเมื่อชีตยังว่าง */
+function ensureSoil_() {
+  const sh = ensureSheet_(SOIL_SHEET, SOIL_HEADERS);
+  sh.getRange('C:C').setNumberFormat('@');
+  sh.getRange('T:T').setNumberFormat('@');
+  if (sh.getLastRow() >= 2 || typeof SOIL_SEED === 'undefined') return 'PASS: ชีต soil_centers พร้อม (' + Math.max(0, sh.getLastRow() - 1) + ' ศูนย์)';
+  const rows = SOIL_SEED.map(function (o) { return soilObjToRow_(o, 'seed ทำเนียบ 2569'); });
+  sh.getRange(2, 1, rows.length, SOIL_HEADERS.length).setValues(rows);
+  return 'PASS: ใส่ข้อมูล ศดปช. ตั้งต้น ' + rows.length + ' ศูนย์';
+}
+
+function soilList_() { return soilAll_(); }
+
+/** นำเข้าทำเนียบทั้งชุด (แทนที่ทั้งหมด) สำรองชีตเดิมไว้ก่อน */
+function soilImport_(input, s) {
+  input = input || {};
+  const rows = Array.isArray(input.rows) ? input.rows : [];
+  if (!rows.length) throw new Error('ไม่มีรายการ ศดปช.');
+  if (rows.length > 2000) throw new Error('รายการมากเกินไป');
+  const errs = [];
+  rows.forEach(function (o, i) { const e = validateSoil_(o); if (e.length) errs.push('แถว ' + (i + 1) + ': ' + e.join(', ')); });
+  if (errs.length) throw new Error(errs.slice(0, 5).join(' | '));
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ss = spreadsheet_();
+    const sh = ensureSheet_(SOIL_SHEET, SOIL_HEADERS);
+    const bakName = '_bak_SOIL' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMddHHmmss');
+    sh.copyTo(ss).setName(bakName).hideSheet();
+    const old = {};
+    soilAll_().forEach(function (o) { old[o.name + '|' + o.district_code] = o; });
+    const data = rows.map(function (o, i) {
+      const prev = old[cleanText_(o.name, 200) + '|' + String(o.district_code || '')];
+      // ถ้าไฟล์ใหม่ไม่มีข้อมูลประธาน ให้คงค่าเดิมไว้
+      if (prev) { if (!o.chair) o.chair = prev.chair; if (!o.chair_phone) o.chair_phone = prev.chair_phone; }
+      o.id = prev ? prev.id : 'S' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMdd') + String(i + 1).padStart(3, '0');
+      return soilObjToRow_(o, s.username);
+    });
+    if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, SOIL_HEADERS.length).clearContent();
+    sh.getRange(2, 1, data.length, SOIL_HEADERS.length).setValues(data);
+    const baks = ss.getSheets().map(function (x) { return x.getName(); }).filter(function (n) { return n.indexOf('_bak_SOIL') === 0; }).sort();
+    while (baks.length > 5) ss.deleteSheet(ss.getSheetByName(baks.shift()));
+    invalidateData_();
+    audit_(s, 'soil_import', cleanText_(input.fileName, 120) + ' ' + data.length + ' ศูนย์ (สำรอง ' + bakName + ')');
+    return { message: 'นำเข้า ศดปช. ' + data.length + ' ศูนย์แล้ว (สำรองข้อมูลเดิมไว้ที่ชีต ' + bakName + ')', count: data.length };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** แก้ไข/ยืนยันศูนย์เดียว (เช่น แก้พิกัด แล้วกดยืนยัน) */
+function soilUpdate_(input, s) {
+  input = input || {};
+  const sh = sheetByName_(SOIL_SHEET);
+  const rows = dataRows_(sh);
+  const i = rows.findIndex(function (r) { return text_(r[0]) === String(input.id || ''); });
+  if (i < 0) throw new Error('ไม่พบ ศดปช.');
+  const o = soilRowToObj_(rows[i]);
+  ['name', 'district_code', 'district', 'location', 'type', 'level', 'members', 'year_start', 'crops', 'note'].forEach(function (k) { if (k in input) o[k] = input[k]; });
+  if ('lat' in input) { o.lat = input.lat === '' || input.lat === null ? null : Number(input.lat); o.lng = input.lng === '' || input.lng === null ? null : Number(input.lng); }
+  if ('verified' in input) o.verified = !!input.verified;
+  const e = validateSoil_(o);
+  if (e.length) throw new Error(e.join(', '));
+  sh.getRange(i + 2, 1, 1, SOIL_HEADERS.length).setValues([soilObjToRow_(o, s.username)]);
+  invalidateData_();
+  audit_(s, 'soil_update', o.id + ' ' + o.name + (o.verified ? ' (ยืนยันแล้ว)' : ''));
+  return { message: 'บันทึก ' + o.name + ' แล้ว', item: o };
+}
+
+// ===================== SoilSeed.gs =====================
+/** ข้อมูล ศดปช. ตั้งต้น (สร้างโดย tests/build-soil-seed.js ไม่มีข้อมูลส่วนบุคคล) */
+const SOIL_SEED = [{"id":"S001","name":"ศดปช.บ้านพงษ์ทองคำ","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 7 ตำบลระหาน","lat":16.161338,"lng":99.949682,"type":"หลัก","level":"B","members":32,"year_start":2562,"fund":30000,"crops":"ข้าว","network":"ศพก.เครือข่าย,วสช.ข้าวปลอดภัยบ้านพงษ์ทองคำ,ศจช.บ้านพงษ์ทองคำ,แปลงใหญ่ข้าว2 หมู่ 7 ตำบลระหาน","organic":"","products":"ธาตุอาหารเสริมฤฉพืชทางใบ","oss":"ได้รับ","oss_status":"ดำเนินการอยู่","note":"","verified":true},{"id":"S002","name":"ศดปช.บ้านกระบวยทองใต้","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 2 ตำบลระหาน","lat":16.14098,"lng":99.971974,"type":"เครือข่าย","level":"C","members":46,"year_start":2560,"fund":20000,"crops":"ข้าว/ผัก","network":"ศพก.หลัก,วสช.กลุ่มเมล็ดเมล็ดพันธุ์ข้าวบ้านกระบวยทองใต้,ศจช.บ้านกระบวยทองใต้,แปลงใหญ่ข้าว หมู่ 2 ตำบลระหาน","organic":"","products":"ธาตุอาหารเสริมพืชทางใบ","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S003","name":"ศดปช.บ้านดงเย็น","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 1 ตำบลระหาน","lat":16.156628,"lng":99.999117,"type":"เครือข่าย","level":"C","members":39,"year_start":2565,"fund":20000,"crops":"ข้าว","network":"ศพก.เครือข่าย.วสช.กลุ่มข้าวปลอดภัยบ้านดงเย็น,ศจช.บ้านดงเย็น,แปลงใหญ่ข้าว หมู่ 1 ตำบลระหาน","organic":"","products":"ธาตุอาหารเสริมพืชทางใบ","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S004","name":"ศดปช.บ้านทุ่งสนุ่นใต้","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 3 ตำบลระหาน","lat":16.154494,"lng":99.943757,"type":"เครือข่าย","level":"C","members":30,"year_start":2565,"fund":20000,"crops":"ข้าว","network":"ศพก.เครือข่าย,วสช.ผลผลิตการเกษตรบ้านทุ่งสนุ่นใต้,ศจช.บ้านทุ่งสนุ่นใต้,แปลงใหญ่ข้าว หมู่ 3 ตำบลระหาน","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S005","name":"ศดปช.บ้านหนองจิก","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 6 ตำบลระหาน","lat":16.14109,"lng":99.926944,"type":"เครือข่าย","level":"C","members":35,"year_start":2564,"fund":30000,"crops":"ข้าว","network":"ศพก.เครือข่าย,วสช.ผู้ผลิตเมล็ดพันธุ์ข้าวบ้านหนองจิก,ศจช.บ้านหนองจิก,แปลงใหญ่ข้าว หมู่ 6 ตำบลระหาน","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S006","name":"ศดปช.บ้านคลองเจริญสุขพัฒนา","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 10 ตำบลระหาน","lat":16.136101,"lng":99.998883,"type":"เครือข่าย","level":"C","members":32,"year_start":2562,"fund":20000,"crops":"ข้าว","network":"ศพก.เครือข่าย,วสช.ข้าวปลอดภัยบ้านคลองเจริญสุขพัฒนา,ศจช.บ้านคลองเจริญสุขพัฒนา,แปลงใหญ่ข้าว หมู่ 10 ตำบลระหาน","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S007","name":"ศดปช.บ้านบึงบ้านพัฒนา","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 12 ตำบลบึงสามัคคี","lat":16.309828,"lng":100.009194,"type":"เครือข่าย","level":"C","members":31,"year_start":2560,"fund":0,"crops":"ข้าว","network":"ศพก.เครือข่าย,วสช.กลุ่มข้าวเข้มแข็งบ้านบึงบ้านพัฒนา,ศจช.บ้านบึงบ้านพัฒนา,แปลงใหญ่ข้าว หมู่ 12 ตำบลบึงสามัคคี","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S008","name":"ศดปช.บ้านหนองเสือ","district_code":"6210","district":"บึงสามัคคี","location":"หมู่ 2 ตำบลวังชะโอน","lat":16.17254,"lng":100.007961,"type":"เครือข่าย","level":"B","members":35,"year_start":2560,"fund":100000,"crops":"ข้าว","network":"ศพก.เครือข่าย,วสช.กลุ่มโรงสีข้าวเพื่อชุมชนบ้านหนองเสือ,ศจช.บ้านหนองเสือ,แปลงใหญ่ข้าว หมู่ 2 ตำบลวังชะโอน","organic":"","products":"ธาตุอาหารเสริมพืชทางใบ","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S009","name":"ศดปช. ต.มหาชัย","district_code":"6202","district":"ไทรงาม","location":"ต.มหาชัย","lat":16.502324,"lng":99.772768,"type":"หลัก","level":"C","members":37,"year_start":2559,"fund":3700,"crops":"ข้าว","network":"ศพก. ศจช.บ้านศรีวิไล วสช.กลุ่มข้าวนาแปลงใหญ่บ้านศรีวิไล","organic":"","products":"","oss":"","oss_status":"","note":"","verified":true},{"id":"S010","name":"ศดปช. ต.พานทอง","district_code":"6202","district":"ไทรงาม","location":"ต.พานทอง","lat":16.35795,"lng":99.840581,"type":"เครือข่าย","level":"C","members":44,"year_start":2565,"fund":0,"crops":"ข้าว","network":"ศพก. ศจช.บ้านหนองโดนใต้","organic":"","products":"","oss":"","oss_status":"","note":"ไม่ระบุอำเภอ (ใช้อำเภอจากพิกัด)","verified":false},{"id":"S011","name":"ศดปช. บ้านโคกเจริญ ต.หนองทอง","district_code":"6202","district":"ไทรงาม","location":"ต.หนองทอง","lat":16.427929,"lng":99.774497,"type":"เครือข่าย","level":"C","members":20,"year_start":2568,"fund":0,"crops":"ข้าว","network":"ศจช.บ้านโคกเจริญ","organic":"","products":"","oss":"","oss_status":"","note":"ไม่ระบุอำเภอ (ใช้อำเภอจากพิกัด)","verified":false},{"id":"S012","name":"ศดปช. บ้านลำมะโกรก","district_code":"6207","district":"ลานกระบือ","location":"ม.2 ต.หนองหลวง อ.ลานกระบือ","lat":16.592702,"lng":99.736925,"type":"หลัก","level":"C","members":20,"year_start":2558,"fund":5000,"crops":"ข้าว","network":"ศพก.บ้านลำมะโกรก, วสช.กลุ่มเมล็ดพันธุ์ข้าวก้าวหน้าบ้านลำมะโกรก, ศจช.บ้านลำมะโกรก","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S013","name":"ศดปช. บ้านมะหาดหวาน","district_code":"6207","district":"ลานกระบือ","location":"ม.11 ต.ลานกระบือ","lat":16.649636,"lng":99.829222,"type":"เครือข่าย","level":"C","members":20,"year_start":2566,"fund":0,"crops":"ผักปลอดภัย","network":"ศพก.บ้านมะหาดหวาน, วสช.เกษตรปลอดภัยบ้านมะหาดหวาน, ศจช.บ้านมะหาดหวาน","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S014","name":"ศดปช. บ้านนาถัง","district_code":"6206","district":"พรานกระต่าย","location":"ม.5 ต.ถ้ำกระต่ายทอง","lat":16.6587,"lng":99.592,"type":"หลัก","level":"C","members":25,"year_start":2559,"fund":0,"crops":"","network":"","organic":"","products":"","oss":"","oss_status":"","note":"ข้อมูลในแถวต้นฉบับเลื่อนคอลัมน์ (ปรับให้แล้ว ไม่มีข้อมูลพืชหลัก) · ประเภทจากข้อความ","verified":false},{"id":"S015","name":"ศดปช. บ้านวังตะกู","district_code":"6206","district":"พรานกระต่าย","location":"ม.11 ต.วังควง","lat":16.829146,"lng":99.43301,"type":"เครือข่าย","level":"C","members":25,"year_start":2558,"fund":0,"crops":"","network":"","organic":"","products":"","oss":"","oss_status":"","note":"ข้อมูลในแถวต้นฉบับเลื่อนคอลัมน์ (ปรับให้แล้ว ไม่มีข้อมูลพืชหลัก) · ประเภทจากข้อความ","verified":false},{"id":"S016","name":"ศดปช.บ้านปางเหนือ","district_code":"6209","district":"ปางศิลาทอง","location":"ม.6 ต.ปางตาไว อ.ปางศิลาทอง","lat":16.056091,"lng":99.347075,"type":"หลัก","level":"C","members":30,"year_start":2558,"fund":4000,"crops":"มันสำปะหลัง","network":"ศจช. บ้านปางเหนือ","organic":"","products":"","oss":"","oss_status":"","note":"","verified":true},{"id":"S017","name":"ศดปช.บ้านปางมะละกอ","district_code":"6209","district":"ปางศิลาทอง","location":"ม.8 ต.ปางตาไว อ.ปางศิลาทอง","lat":15.993821,"lng":99.399754,"type":"เครือข่าย","level":"C","members":30,"year_start":2558,"fund":0,"crops":"มันสำปะหลัง","network":"ศจช. บ้านปางมะละกอ","organic":"","products":"","oss":"","oss_status":"","note":"","verified":true},{"id":"S018","name":"ศดปช.บ้านเพชรเจริญ","district_code":"6209","district":"ปางศิลาทอง","location":"ม.3 ต.ปางตาไว อ.ปางศิลาทอง","lat":16.023136,"lng":99.370751,"type":"เครือข่าย","level":"C","members":20,"year_start":2568,"fund":0,"crops":"มันสำปะหลัง","network":"","organic":"","products":"","oss":"","oss_status":"","note":"","verified":true},{"id":"S019","name":"ศดปช.บ้านสักงาม","district_code":"6203","district":"คลองลาน","location":"หมู่ 1 ต.สักงาม อ.คลองลาน จ.กำแพงเพชร","lat":16.327747,"lng":99.32257,"type":"หลัก","level":"C","members":20,"year_start":2558,"fund":0,"crops":"ข้าว,มันสำปะหลัง,ข้าวโพด และถั่วเหลือง","network":"ศจช., วสช.","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"สลับ lat/long","verified":false},{"id":"S020","name":"ศดปช.บ้านสามัคคีธรรม","district_code":"6203","district":"คลองลาน","location":"หมู่ 16 ต.คลองน้ำไหล อ.คลองลาน จ.กำแพงเพชร","lat":16.22686,"lng":99.2894,"type":"เครือข่าย","level":"C","members":20,"year_start":2566,"fund":0,"crops":"มันสำปะหลัง","network":"","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"สลับ lat/long","verified":false},{"id":"S021","name":"ศดปช. บ้านอุบลสามัคคี","district_code":"6208","district":"ทรายทองวัฒนา","location":"ม.9 ต.ทุ่งทอง","lat":16.34918,"lng":99.89362,"type":"หลัก","level":"C","members":25,"year_start":2559,"fund":0,"crops":"ข้าว","network":"แปลงใหญ่","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"สลับ lat/long","verified":false},{"id":"S022","name":"ศดปช. บ้านบึงสำราญ","district_code":"6208","district":"ทรายทองวัฒนา","location":"ม.7 ต.ถาวรวัฒนา","lat":16.31461,"lng":99.93496,"type":"เครือข่าย","level":"C","members":30,"year_start":2559,"fund":0,"crops":"ข้าว","network":"แปลงใหญ่","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"สลับ lat/long","verified":false},{"id":"S023","name":"ศดปช. ทุ่งทรายเหนือ","district_code":"6208","district":"ทรายทองวัฒนา","location":"ม.15 ต.ทุ่งทราย","lat":16.31193,"lng":99.8289,"type":"เครือข่าย","level":"C","members":28,"year_start":2566,"fund":0,"crops":"ข้าว","network":"","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"สลับ lat/long","verified":false},{"id":"S024","name":"ศดปช.ตำบลวังแขม","district_code":"6205","district":"คลองขลุง","location":"ม.8 ต.วังแขม","lat":16.2056,"lng":99.8558,"type":"หลัก","level":"C","members":33,"year_start":2564,"fund":60000,"crops":"ข้าว","network":"ศจช.บ้านบ่อทอง วสช.กลุ่มผู้ผลิตพืชปลอดภัยตำบลวังแขม","organic":"","products":"ผสมปุ๋ย","oss":"","oss_status":"","note":"","verified":true},{"id":"S025","name":"ศดปช. บ้านคลองสมบูรณ์","district_code":"6205","district":"คลองขลุง","location":"ม.7 ต.คลองสมบูรณ์","lat":16.2321,"lng":99.5421,"type":"เครือข่าย","level":"C","members":30,"year_start":2558,"fund":0,"crops":"มันสำปะหลัง","network":"","organic":"","products":"","oss":"","oss_status":"","note":"","verified":true},{"id":"S026","name":"ศดปช. เครือข่ายบ้านเกาะรากเสียดใน","district_code":"6211","district":"โกสัมพีนคร","location":"หมู่ 7 ตำบลเพชรชมภู","lat":16.634948,"lng":99.404226,"type":"เครือข่าย","level":"C","members":20,"year_start":2566,"fund":0,"crops":"ข้าว","network":"ศพก.","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"","verified":true},{"id":"S027","name":"ศดปช. บ้านหนองบง","district_code":"6211","district":"โกสัมพีนคร","location":"หมู่ 21 ตำบลโกสัมพี","lat":16.648688,"lng":99.357329,"type":"หลัก","level":"C","members":30,"year_start":2559,"fund":2000,"crops":"มันสำปะหลัง","network":"วสช./ศพก.","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"ไม่ระบุอำเภอ (ใช้อำเภอจากพิกัด)","verified":false},{"id":"S028","name":"ศดปช.เครือข่าย ตำบลอ่างทอง","district_code":"6201","district":"เมืองกำแพงเพชร","location":"หมู่ที่ 14 ต.อ่างทอง","lat":16.183328,"lng":99.491157,"type":"เครือข่าย","level":"C","members":30,"year_start":2562,"fund":0,"crops":"มันสำปะหลัง","network":"วิสาหกิจชุมชน เกษตรแปลงใหญ่ บ้านทุ่งรวงทอง","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"แปลงจาก UTM 47N (552502, 1789277) · พิกัดอยู่ใน อ.คลองขลุง แต่ระบุ อ.เมืองกำแพงเพชร","verified":false},{"id":"S029","name":"ศดปช.ตำบลบ้านทรงธรรม","district_code":"6201","district":"เมืองกำแพงเพชร","location":"หมู่ที่ 4 ต.ทรงธรรม","lat":16.519963,"lng":99.433618,"type":"หลัก","level":"C","members":20,"year_start":2555,"fund":0,"crops":"มันสำปะหลัง","network":"","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"แปลงจาก UTM 47N (546272, 1826502)","verified":false},{"id":"S030","name":"ศดปช.ตำบลโค้งไผ่","district_code":"6204","district":"ขาณุวรลักษบุรี","location":"ม.5 ต.โค้งไผ่ อ.ขาณุวรลักษบุรี","lat":16.122985,"lng":99.712824,"type":"เครือข่าย","level":"C","members":20,"year_start":2558,"fund":0,"crops":"ข้าว","network":"ศพก.","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"แปลงจาก UTM 47N (576221, 1782671)","verified":false},{"id":"S031","name":"ศดปช.บ้านใหม่คลองสะพานช้าง","district_code":"6204","district":"ขาณุวรลักษบุรี","location":"24 ต.ปางมะค่า อ.ขาณุวรลักษบุรี","lat":15.935994,"lng":99.64461,"type":"หลัก","level":"C","members":20,"year_start":2567,"fund":0,"crops":"ข้าว","network":"ศพก.","organic":"","products":"","oss":"","oss_status":"ไม่มีการดำเนินการ","note":"แปลงจาก UTM 47N (568991, 1761962)","verified":false}];

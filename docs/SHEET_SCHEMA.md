@@ -11,6 +11,9 @@
 | `_bak_IMP…` | ทุกการนำเข้า (ซ่อน, เก็บ 10 ชุดล่าสุด) | สำเนาชีต data ก่อนนำเข้า |
 | `download_requests` | setupSystem | Request_ID, Time, Name, Position, Agency, Email, Phone, Purpose_Type, Purpose_Detail, Crops, Year_From, Year_To, Status, Decided_By, Decided_At, Note, Token_Hash, Token_Expires, Download_Count, Last_Download |
 | `visit_stats` | setupSystem | Date, Visits, Visitors, Updated_At |
+| `soil_centers` | setupSystem (ข้อมูลตั้งต้น 31 ศูนย์) | Center_ID, Name, District_Code, District, Location, Lat, Lng, Type, Level, Members, Year_Start, Fund, Crops, Network, Organic, Products, OSS, OSS_Status, **Chair, Chair_Phone (ไม่ส่งออกสาธารณะ)**, Note, Verified, Updated_At, Updated_By |
+| `_bak_SOIL…` | ทุกการนำเข้า ศดปช. (ซ่อน, เก็บ 5 ชุด) | สำเนาชีต soil_centers |
+| `admin_requests` | setupSystem | Request_ID, Time, Phone, Name, Position, Agency, Email, Reason, Pass_Hash, Salt (ลบเมื่อพิจารณาแล้ว), Status, Decided_By, Decided_At, Note |
 | `links` | setupSystem (มี 2 ลิงก์เริ่มต้น) | Link_ID, Title, URL, Description, Icon, Order, Active, Updated_At, Updated_By |
 
 คีย์ของข้อมูลคือ **ปี + พืช + รหัสอำเภอ** การนำเข้าซ้ำคีย์เดิมจะแก้ไขค่า ไม่สร้างแถวซ้ำ

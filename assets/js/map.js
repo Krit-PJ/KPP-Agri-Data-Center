@@ -2,7 +2,8 @@
 window.SmartMap = (function () {
   const C = window.APP_CONFIG;
   const D = window.AgriData;
-  let map, layer, base, labels = [], ctx, state, sparkChart;
+  let map, layer, base, labels = [], ctx, state, sparkChart, soilLayer;
+  const SOIL_COLOR = { 'หลัก': '#eb6834', 'เครือข่าย': '#2a78d6' };
 
   const RAMP = ['#e6f4ea', '#a8dbb7', '#5fb87c', '#258a47', '#0e4d22']; // sequential: เขียวเดียว อ่อน→เข้ม
   const BASEMAPS = {
@@ -24,8 +25,14 @@ window.SmartMap = (function () {
   function init(_ctx, _state) {
     ctx = _ctx; state = _state;
     map = L.map('map', { zoomControl: true, attributionControl: true, zoomSnap: 0.25 }).setView(C.CENTER, C.ZOOM);
+    map.attributionControl.setPrefix('© 2569 Dr. Kitti PhoJuang · <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
     setBase('light');
     layer = L.geoJSON(ctx.geo, { style, onEachFeature }).addTo(map);
+    soilLayer = L.layerGroup();
+    const tg = document.getElementById('tg-soil');
+    document.getElementById('soil-count').textContent = ctx.soil.length ? `(${ctx.soil.length})` : '(ไม่มีข้อมูล)';
+    tg.checked = !!state.soil;
+    tg.addEventListener('change', () => { state.soil = tg.checked; renderSoil(); render(); if (window.App) App.writeHash(); });
     resetView();
 
     // controls
@@ -107,7 +114,8 @@ window.SmartMap = (function () {
       <div class="lg-title">${m.label} (${m.unit})</div>
       <div class="bar" style="background:linear-gradient(90deg,${RAMP.join(',')})"></div>
       <div class="ends"><span>${D.fmt(isFinite(rng[0]) ? rng[0] : 0)}</span><span>${D.fmt(rng[1])}</span></div>
-      <div class="ends nodata"><span><i></i> ไม่มีการปลูก</span></div>`;
+      <div class="ends nodata"><span><i></i> ไม่มีการปลูก</span></div>
+      ${state.soil ? '<div class="soil-lg"><span><span class="dot main"></span> ศดปช. หลัก</span><span><span class="dot net"></span> เครือข่าย</span></div>' : ''}`;
     const base = D.filter(ctx.rows, { crop: state.crop, year: state.year });
     const k = [
       ['🌱', D.M.planted(base), 'เนื้อที่เพาะปลูก (ไร่)'],
@@ -159,5 +167,47 @@ window.SmartMap = (function () {
     setTimeout(() => { map.invalidateSize(); if (!fitted || refit) { resetView(); fitted = true; } }, 60);
   }
 
-  return { init, render, closeInfo, invalidate };
+  // ---------- ชั้นข้อมูล ศดปช. ----------
+  function soilPopup(c) {
+    const cls = c.type === 'หลัก' ? 'main' : 'net';
+    const row = (k, v) => (v ? `<dt>${k}</dt><dd>${D.esc(v)}</dd>` : '');
+    return `<div class="soil-pop"><h4>${D.esc(c.name)}</h4>${c.type ? `<span class="tag ${cls}">ศูนย์${D.esc(c.type)}</span>` : ''}
+      <dl>${row('อำเภอ', c.district)}${row('ที่ตั้ง', c.location)}${row('สมาชิก', D.fmt(c.members) + ' ราย')}${row('เริ่มดำเนินการ', c.year_start)}
+      ${row('ระดับ', c.level)}${row('พืชหลัก', c.crops)}${row('สินค้า/บริการ', c.products)}${row('โครงการ OSS', c.oss ? (c.oss + (c.oss_status ? ' · ' + c.oss_status : '')) : '')}</dl>
+      ${!c.verified ? `<div class="warn">⚠️ พิกัดรอตรวจสอบ: ${D.esc(c.note)}</div>` : ''}</div>`;
+  }
+  function renderSoil() {
+    if (!soilLayer) return;
+    soilLayer.clearLayers();
+    if (!state.soil) { map.removeLayer(soilLayer); return; }
+    ctx.soil.filter((c) => c.lat !== null && c.lng !== null).forEach((c) => {
+      const m = L.circleMarker([c.lat, c.lng], { radius: Math.max(6, Math.min(16, Math.sqrt(c.members) * 1.6)), color: '#fff', weight: 2,
+        fillColor: SOIL_COLOR[c.type] || '#6b7682', fillOpacity: 0.95, dashArray: c.verified ? null : '3 2' });
+      if (window.innerWidth < 760) m.on('click', () => openSoilSheet(c));
+      else { m.bindPopup(soilPopup(c), { maxWidth: 300, autoPanPaddingTopLeft: L.point(10, 90), autoPanPaddingBottomRight: L.point(10, 110) });
+        m.bindTooltip(D.esc(c.name), { direction: 'top', offset: [0, -6] }); }
+      m.soilId = c.id;
+      soilLayer.addLayer(m);
+    });
+    soilLayer.addTo(map);
+  }
+  // มือถือ: แสดงรายละเอียดในแผงล่าง (bottom sheet) แทนป๊อปอัปที่ถูกปุ่มลอยบัง
+  function openSoilSheet(c) {
+    document.getElementById('layer-panel').classList.remove('open');
+    state.openDistrict = null;
+    const el = document.getElementById('info-card');
+    el.innerHTML = `<div class="grab"></div><button class="x" onclick="SmartMap.closeInfo()" aria-label="ปิด">✕</button>${soilPopup(c)}`;
+    el.classList.add('open');
+  }
+  function focusSoil(id) {
+    state.soil = true; document.getElementById('tg-soil').checked = true;
+    renderSoil(); render();
+    soilLayer.eachLayer((m) => {
+      if (m.soilId !== id) return;
+      map.setView(m.getLatLng(), 12);
+      if (window.innerWidth < 760) openSoilSheet(ctx.soil.find((c) => c.id === id)); else m.openPopup();
+    });
+  }
+
+  return { init, render: () => { render(); renderSoil(); }, closeInfo, invalidate, focusSoil };
 })();

@@ -164,3 +164,50 @@ test('super admin bootstrap by one-time emailed claim link (no password handled 
   // เรียกซ้ำไม่ส่งอีเมลซ้ำ
   g.get({ action: 'bootstrap' }); assert.strictEqual(g.outbox.length, 1);
 });
+
+test('soil centers: seeded, public API hides chair data, admin update/verify, import keeps chair', () => {
+  const { g } = boot();
+  const b = g.get({ action: 'bootstrap' }).result;
+  assert.strictEqual(b.soil.length, 31);
+  assert.strictEqual(b.soil.reduce((a, s) => a + s.members, 0), 877);
+  assert.ok(b.soil.every((s) => !('chair' in s) && !('chair_phone' in s)));
+  assert.strictEqual(b.soil.filter((s) => !s.verified).length, 14);
+  const tok = login(g, 'krit', 'Dev#pass2026');
+  const one = b.soil.find((s) => /อ่างทอง/.test(s.name));
+  const u = g.post({ method: 'soilUpdate', token: tok, args: [{ id: one.id, lat: 16.40, lng: 99.55, verified: true }] });
+  assert.ok(u.ok, u.error);
+  assert.match(g.post({ method: 'soilUpdate', token: tok, args: [{ id: one.id, lat: 99.5, lng: 16.4 }] }).error, /ประเทศไทย/);
+  const b2 = g.get({ action: 'bootstrap' }).result.soil.find((s) => s.id === one.id);
+  assert.deepStrictEqual([b2.lat, b2.verified], [16.4, true]);
+  // นำเข้าใหม่ที่มีชื่อประธาน → เก็บในชีต แต่ API สาธารณะไม่ส่งออก
+  const rows = g.post({ method: 'soilList', token: tok }).result.map((s) => ({ ...s, chair: 'นายทดสอบ', chair_phone: '0812345678' }));
+  assert.ok(g.post({ method: 'soilImport', token: tok, args: [{ rows, fileName: 'x.xlsx' }] }).ok);
+  assert.ok(JSON.stringify(g.ss.getSheetByName('soil_centers').rows).includes('นายทดสอบ'));
+  assert.ok(!JSON.stringify(g.get({ action: 'bootstrap' }).result).includes('นายทดสอบ'));
+  assert.ok(g.ss.getSheets().some((s) => s.getName().startsWith('_bak_SOIL')));
+});
+
+test('admin access request: phone + password, super approves; preapproved phone is instant', () => {
+  const { g } = boot();
+  g.props.set('ADMIN_PREAPPROVED_PHONES', '0899999999');
+  const form = { phone: '081-234-5678', name: 'สมใจ ใจดี', position: 'นักวิชาการส่งเสริมการเกษตร', agency: 'สนง.เกษตรอำเภอไทรงาม', email: 'a@example.org', reason: 'นำเข้าข้อมูลอำเภอ', password: 'Pass#2026a', consent: true };
+  assert.match(g.post({ method: 'adminRequest', args: [{ ...form, phone: '12345' }] }).error, /10 หลัก/);
+  assert.match(g.post({ method: 'adminRequest', args: [{ ...form, password: '123' }] }).error, /8/);
+  const r = g.post({ method: 'adminRequest', args: [form] });
+  assert.ok(r.ok, r.error); assert.strictEqual(r.result.approved, false);
+  assert.match(g.post({ method: 'adminRequest', args: [form] }).error, /รอพิจารณา/);
+  assert.match(g.post({ method: 'adminLogin', args: [{ username: '0812345678', password: 'Pass#2026a' }] }).error, /ไม่ถูกต้อง/);
+  const tok = login(g, 'krit', 'Dev#pass2026');
+  const list = g.post({ method: 'adminRequestList', token: tok, args: [{ status: 'pending' }] }).result;
+  assert.strictEqual(list.length, 1); assert.ok(!('password' in list[0]));
+  assert.ok(g.post({ method: 'adminRequestDecide', token: tok, args: [{ id: list[0].id, decision: 'approve' }] }).ok);
+  const at = login(g, '0812345678', 'Pass#2026a');
+  assert.strictEqual(g.post({ method: 'adminMe', token: at }).result.role, 'admin');
+  assert.match(g.post({ method: 'adminRequestList', token: at }).error, /Super Admin/);
+  assert.ok(!JSON.stringify(g.ss.getSheetByName('admin_requests').rows[1].slice(8, 10)).match(/[0-9a-f]{64}/), 'hash removed from request sheet');
+  // อนุมัติล่วงหน้า
+  const p = g.post({ method: 'adminRequest', args: [{ ...form, phone: '0899999999' }] });
+  assert.ok(p.result.approved);
+  assert.ok(login(g, '0899999999', 'Pass#2026a'));
+  assert.match(g.post({ method: 'superClaimResend' }).error, /มี Super Admin แล้ว/);
+});
