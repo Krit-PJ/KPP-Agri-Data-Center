@@ -15,6 +15,7 @@ function setupSystem() {
   ensureSheet_('visit_stats', VISIT_HEADERS).getRange('A:A').setNumberFormat('@');
   ensureSheet_('admin_requests', AREQ_HEADERS).getRange('C:C').setNumberFormat('@');
   out.push(ensureSoil_());
+  ensureDatasets_().forEach(function (m) { out.push(m); });
   const links = ensureSheet_('links', LINK_HEADERS);
   if (links.getLastRow() < 2) DEFAULT_LINKS.forEach(function (l) { links.appendRow(l.concat([new Date(), 'setupSystem'])); });
   out.push('PASS: ชีตระบบพร้อม');
@@ -31,7 +32,7 @@ function setupSystem() {
 /** ทดสอบหลัง deploy: Run แล้วดู Execution log */
 function selfTest() {
   const b = bootstrap_();
-  const res = ['rows=' + b.rows.length, 'crops=' + b.crops.join('/'), 'districts=' + b.districts.length, 'links=' + b.links.length,
+  const res = ['rows=' + b.rows.length, 'crops=' + b.crops.join('/'), 'districts=' + b.districts.length, 'links=' + b.links.length, 'soil=' + b.soil.length, 'farms=' + b.farms.length, 'lc=' + b.lc.length,
     'visits=' + JSON.stringify(visitCounts_())];
   Logger.log(res.join('\n'));
   return res;

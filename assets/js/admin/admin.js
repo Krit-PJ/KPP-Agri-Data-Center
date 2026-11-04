@@ -58,7 +58,7 @@
   }
 
   // ---------- tabs ----------
-  const LOADERS = { history: loadHistory, requests: loadRequests, links: loadLinks, admins: loadAdmins, log: loadLog, soil: loadSoil, adminreq: loadAdminReq };
+  const LOADERS = { data: () => window.DataTable.load(), history: loadHistory, requests: loadRequests, links: loadLinks, admins: loadAdmins, log: loadLog, soil: loadSoil, adminreq: loadAdminReq };
   function tab(name) {
     document.querySelectorAll('#adm-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.id === 'tab-' + name));
@@ -66,6 +66,8 @@
     if (LOADERS[name]) LOADERS[name]().catch((e) => toast(e.message));
   }
   $('adm-tabs').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) tab(b.dataset.tab); });
+  // ใช้ร่วมกับตารางข้อมูล (datatable.js)
+  window.AdminCtx = { call, toast, esc, fmt, S, toGrids: (f) => toGrids(f) };
 
   // =====================================================================
   // IMPORT

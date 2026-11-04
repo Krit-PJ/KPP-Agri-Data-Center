@@ -14,7 +14,7 @@ window.SoilView = (function () {
       const b = e.target.closest('[data-soil-map]'); if (!b) return;
       App.go('map'); setTimeout(() => SmartMap.focusSoil(b.dataset.soilMap), 120);
     });
-    document.getElementById('soil-to-map').onclick = () => { App.state.soil = true; App.go('map'); };
+    document.getElementById('soil-to-map').onclick = () => { App.state.layers.soil = true; App.go('map'); };
     document.getElementById('soil-src').textContent = 'ที่มา: ทำเนียบ ศดปช. ปี 2569 สำนักงานเกษตรจังหวัดกำแพงเพชร · ' + ctx.soil.length + ' ศูนย์ ใน ' + ds.length + ' อำเภอ';
     inited = true;
   }

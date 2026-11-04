@@ -24,7 +24,7 @@
   }
 
   async function load() {
-    let source = 'api', rows, districts, links = C.DEFAULT_LINKS, updated = null, soil = null;
+    let source = 'api', rows, districts, links = C.DEFAULT_LINKS, updated = null, soil = null, farms = null, lc = null, lcnet = null, lctype = null;
     try {
       const b = await API.get('bootstrap');
       rows = b.rows.map((r) => Object.fromEntries(b.cols.map((c, i) => [c, r[i]])));
@@ -32,6 +32,7 @@
       links = b.links && b.links.length ? b.links : links;
       updated = b.updated;
       soil = b.soil || null;
+      farms = b.farms || null; lc = b.lc || null; lcnet = b.lcnet || null; lctype = b.lctype || null;
     } catch (e) {
       console.warn('[data] ใช้ไฟล์สำรอง:', e.message);
       source = 'fallback';
@@ -43,6 +44,15 @@
     const geo = await (await fetch(C.GEOJSON)).json();
     if (!soil) { try { soil = (await (await fetch(C.FALLBACK_SOIL)).json()).rows; } catch (e) { soil = []; } }
     soil.forEach((c) => { c.district_code = String(c.district_code); c.members = +c.members || 0; });
+    // กลุ่มแปลงใหญ่ / ศพก. (ไฟล์สำรองใน repo ไม่มีข้อมูลส่วนบุคคล)
+    const getJson = async (u) => { try { return await (await fetch(u)).json(); } catch (e) { return null; } };
+    if (!farms) { const j = await getJson(C.FALLBACK_FARMS); farms = j ? j.rows : []; }
+    if (!lc || !lcnet || !lctype) { const j = await getJson(C.FALLBACK_LC); lc = lc || (j ? j.rows : []); lcnet = lcnet || (j ? j.network : []); lctype = lctype || (j ? j.types : []); }
+    const fixPt = (o) => { o.district_code = String(o.district_code || ''); o.lat = o.lat === '' || o.lat === null || o.lat === undefined ? null : +o.lat; o.lng = o.lat === null ? null : +o.lng; };
+    farms.forEach((f) => { fixPt(f); ['members', 'member_area', 'plots', 'plot_area', 'plot_farmers'].forEach((k) => { f[k] = +f[k] || 0; }); });
+    lc.forEach((c) => { fixPt(c); c.network = +c.network || 0; });
+    lcnet.forEach((n) => { n.district_code = String(n.district_code); n.count = +n.count || 0; });
+    lctype.forEach((n) => { n.count = +n.count || 0; });
     rows = rows.filter((r) => r.crop && r.year);
     // ปีที่ทั้งจังหวัดเป็น 0 หมด = ยังไม่มีข้อมูล (ไม่แสดงเป็นลดลง 100%)
     const tot = {};
@@ -50,7 +60,7 @@
     rows = rows.filter((r) => tot[r.crop + '|' + r.year] > 0);
     const present = new Set(rows.map((r) => r.crop));
     const crops = C.CROPS.filter((c) => present.has(c)).concat([...present].filter((c) => !C.CROPS.includes(c)).sort());
-    return { rows, districts, geo, crops, links, source, updated, soil };
+    return { rows, districts, geo, crops, links, source, updated, soil, farms, lc, lcnet, lctype };
   }
 
   // ---------- Measures (เทียบ DAX ใน docs/DAX_to_JS.md) ----------

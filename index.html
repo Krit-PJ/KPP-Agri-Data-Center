@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1a7f37" />
-  <meta name="description" content="ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร: แผนที่และแดชบอร์ดเนื้อที่เพาะปลูก ผลผลิต และผลผลิตต่อไร่ ของพืชเศรษฐกิจ 9 ชนิด รายอำเภอ" />
+  <meta name="description" content="ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร: แผนที่และแดชบอร์ดเนื้อที่เพาะปลูก ผลผลิต และผลผลิตต่อไร่ ของพืชเศรษฐกิจ 9 ชนิด รายอำเภอ ศูนย์จัดการดินปุ๋ยชุมชน กลุ่มแปลงใหญ่ และ ศพก." />
   <title>KPP Agri Data Center | ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร</title>
   <link rel="icon" href="assets/img/logo-doae.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/vendor/leaflet.css" />
-  <link rel="stylesheet" href="assets/css/style.css?v=2.1.1" />
+  <link rel="stylesheet" href="assets/css/style.css?v=2.2.0" />
 </head>
 <body>
   <div id="loading" class="loading"><div class="spinner"></div><p>กำลังโหลดข้อมูล…</p></div>
@@ -24,11 +24,10 @@
     <nav class="tabs" aria-label="เมนูหลัก">
       <button data-go="map">🗺️ Smart Map</button>
       <button data-go="dashboard">📊 แดชบอร์ด</button>
-      <button data-go="soil">🧪 ศดปช.</button>
+      <button data-go="soil" data-hub="1">🏡 ศูนย์และกลุ่ม</button>
       <button data-go="request">📥 ขอข้อมูล</button>
       <button data-go="links">🔗 ระบบเชื่อมโยง</button>
     </nav>
-    <div class="counter-chip" id="counter-chip" title="จำนวนการเข้าใช้งาน"></div>
     <a class="admin-btn" href="admin.html" title="เข้าสู่ระบบผู้ดูแล">🔐<span>ผู้ดูแลระบบ</span></a>
   </header>
 
@@ -47,13 +46,17 @@
     <aside class="panel sheet" id="layer-panel" aria-label="ตัวเลือกแผนที่">
       <div class="grab"></div>
       <div class="panel-head"><b>ตัวเลือกแผนที่</b><button class="x" id="close-panel" aria-label="ปิด">✕</button></div>
-      <div class="panel-sec"><div class="sec-label">ปีเพาะปลูก</div><div class="year-grid" id="map-years"></div></div>
-      <div class="panel-sec"><div class="sec-label">ตัวชี้วัด (สีบนแผนที่)</div><div class="metric-list" id="map-metrics"></div></div>
-      <div class="panel-sec"><div class="sec-label">ชั้นข้อมูลจุด</div>
-        <label class="layer-toggle"><input type="checkbox" id="tg-soil" /> <span class="dot main"></span><span class="dot net"></span> ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.) <small id="soil-count"></small></label>
+      <div class="panel-sec"><div class="sec-label">ชั้นข้อมูล <small>(เปิดได้หลายชั้นพร้อมกัน)</small></div>
+        <label class="layer-toggle"><input type="checkbox" id="tg-crop" /> <span class="lg-ramp"></span> สถิติพืชเศรษฐกิจที่สำคัญ <small>(สีรายอำเภอ)</small></label>
+        <label class="layer-toggle"><input type="checkbox" id="tg-soil" /> <span class="lg-shape" id="lgs-soil"></span> ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.) <small id="soil-count"></small></label>
+        <label class="layer-toggle"><input type="checkbox" id="tg-farm" /> <span class="lg-shape" id="lgs-farm"></span> กลุ่มแปลงใหญ่ <small id="farm-count"></small></label>
+        <label class="layer-toggle"><input type="checkbox" id="tg-lc" /> <span class="lg-shape" id="lgs-lc"></span> ศพก. หลัก <small id="lc-count"></small></label>
       </div>
+      <div class="panel-sec crop-sec"><div class="sec-label">ปีเพาะปลูก</div><div class="year-grid" id="map-years"></div></div>
+      <div class="panel-sec crop-sec"><div class="sec-label">ตัวชี้วัด (สีบนแผนที่)</div><div class="metric-list" id="map-metrics"></div></div>
       <div class="panel-sec"><div class="sec-label">แผนที่พื้นหลัง</div><div class="chips" id="basemaps"></div></div>
       <div class="src-badge" id="src-badge"></div>
+      <div class="panel-counter" data-counter hidden></div>
     </aside>
 
     <div class="float bl legend" id="legend"></div>
@@ -81,6 +84,7 @@
   <!-- ================= ศดปช. ================= -->
   <section id="view-soil" class="view page" aria-label="ศูนย์จัดการดินปุ๋ยชุมชน">
     <main class="dash soil-dash">
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil">🧪 ศดปช.</button><button data-go="farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc">🏠 ศพก.</button></nav>
       <div class="soil-head card"><div><h2>🧪 ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)</h2><p class="muted" id="soil-src"></p></div>
         <button class="btn primary" id="soil-to-map">🗺️ ดูบนแผนที่</button></div>
       <div class="kpis soil-kpis" id="soil-kpis"></div>
@@ -95,6 +99,49 @@
     </main>
     <footer class="foot" id="soil-foot"></footer>
   </section>
+
+  <!-- ================= กลุ่มแปลงใหญ่ ================= -->
+  <section id="view-farm" class="view page" aria-label="กลุ่มแปลงใหญ่">
+    <main class="dash soil-dash">
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil">🧪 ศดปช.</button><button data-go="farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc">🏠 ศพก.</button></nav>
+      <div class="soil-head card"><div><h2>🌾 กลุ่มแปลงใหญ่</h2><p class="muted" id="farm-src"></p></div>
+        <button class="btn primary" id="farm-to-map">🗺️ ดูบนแผนที่</button></div>
+      <div class="kpis soil-kpis" id="farm-kpis"></div>
+      <div class="card chart-card c-purple"><h3>จำนวนกลุ่มรายอำเภอ</h3><div class="cv"><canvas id="ch-farm-district"></canvas></div></div>
+      <div class="card chart-card c-yellow"><h3>จำนวนกลุ่มรายสินค้าหลัก</h3><div class="cv"><canvas id="ch-farm-commodity"></canvas></div></div>
+      <div class="card chart-card c-pink"><h3>ปีที่เริ่มเป็นแปลงใหญ่ (จำนวนกลุ่ม)</h3><div class="cv"><canvas id="ch-farm-year"></canvas></div></div>
+      <div class="card cy-card">
+        <label class="switch"><input type="checkbox" id="farm-cy" /> <span>แสดงต้นทุน / ผลผลิต ก่อน–หลังเข้าร่วมแปลงใหญ่</span></label>
+        <div id="farm-cy-body" hidden>
+          <p class="note" id="farm-cy-note"></p>
+          <div class="cv"><canvas id="ch-farm-cy"></canvas></div>
+        </div>
+      </div>
+      <div class="card soil-table-card">
+        <div class="soil-filter"><input id="farm-q" placeholder="🔍 ค้นหาชื่อกลุ่ม ตำบล สินค้า…" /><select id="farm-d"><option value="">ทุกอำเภอ</option></select>
+          <select id="farm-c"><option value="">ทุกสินค้า</option></select>
+          <select id="farm-p"><option value="">พิกัดทั้งหมด</option><option value="1">มีพิกัด</option><option value="0">ยังไม่มีพิกัด</option></select></div>
+        <div class="tbl-wrap"><table id="farm-table"></table></div>
+      </div>
+    </main>
+  </section>
+
+  <!-- ================= ศพก. ================= -->
+  <section id="view-lc" class="view page" aria-label="ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร">
+    <main class="dash soil-dash">
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil">🧪 ศดปช.</button><button data-go="farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc">🏠 ศพก.</button></nav>
+      <div class="soil-head card"><div><h2>🏠 ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก.)</h2><p class="muted" id="lc-src"></p></div>
+        <button class="btn primary" id="lc-to-map">🗺️ ดูบนแผนที่</button></div>
+      <div class="kpis soil-kpis" id="lc-kpis"></div>
+      <div class="card chart-card c-purple"><h3>ศพก. เครือข่ายรายอำเภอ (แห่ง)</h3><div class="cv"><canvas id="ch-lc-district"></canvas></div></div>
+      <div class="card chart-card c-yellow lc-type-card"><h3>ศพก. เครือข่ายรายประเภท (แห่ง)</h3><div class="cv tall"><canvas id="ch-lc-type"></canvas></div></div>
+      <div class="card soil-table-card"><h3 class="tbl-h">ศพก. หลัก 11 แห่ง (อำเภอละ 1 ศูนย์)</h3>
+        <div class="tbl-wrap"><table id="lc-table"></table></div>
+        <p class="note">พิกัดจากบัญชี ศพก. หลัก ปี 2567 (UTM โซน 47N) · พื้นที่/เกษตรกรเป้าหมายจากรายละเอียด ศพก. ปี 2566 · จำนวนเครือข่ายจากอินโฟกราฟิก ศพก. จังหวัดกำแพงเพชร (อัปเดต 30 ส.ค. 2567)</p>
+      </div>
+    </main>
+  </section>
+
 
   <!-- ================= ขอข้อมูล ================= -->
   <section id="view-request" class="view page" aria-label="ขอดาวน์โหลดข้อมูล">
@@ -146,13 +193,14 @@
 
   <footer class="sitefoot" id="sitefoot">
     <div>© 2569 Dr. Kitti PhoJuang · ข้อมูล: สำนักงานเกษตรจังหวัดกำแพงเพชร</div>
-    <div class="credit2">พัฒนาโดย ดร. กิตติ โพธิ์จวง กลุ่มอารักขาพืช สำนักงานเกษตรจังหวัดกำแพงเพชร · <a href="admin.html">🔐 ผู้ดูแลระบบ</a></div>
+    <div class="credit2">พัฒนาโดย ดร. กิตติ โพธิ์จวง กลุ่มอารักขาพืช สำนักงานเกษตรจังหวัดกำแพงเพชร</div>
+    <div class="foot-counter" data-counter hidden></div>
   </footer>
 
   <nav class="bottomnav" aria-label="เมนูหลัก (มือถือ)">
     <button data-go="map"><span>🗺️</span>แผนที่</button>
     <button data-go="dashboard"><span>📊</span>แดชบอร์ด</button>
-    <button data-go="soil"><span>🧪</span>ศดปช.</button>
+    <button data-go="soil" data-hub="1"><span>🏡</span>ศูนย์/กลุ่ม</button>
     <button data-go="request"><span>📥</span>ขอข้อมูล</button>
     <button data-go="links"><span>🔗</span>เชื่อมโยง</button>
   </nav>
@@ -161,14 +209,15 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="assets/js/config.js?v=2.1.1"></script>
-  <script src="assets/js/api.js?v=2.1.1"></script>
-  <script src="assets/js/icons.js?v=2.1.1"></script>
-  <script src="assets/js/data.js?v=2.1.1"></script>
-  <script src="assets/js/map.js?v=2.1.1"></script>
-  <script src="assets/js/dashboard.js?v=2.1.1"></script>
-  <script src="assets/js/request.js?v=2.1.1"></script>
-  <script src="assets/js/soil.js?v=2.1.1"></script>
-  <script src="assets/js/app.js?v=2.1.1"></script>
+  <script src="assets/js/config.js?v=2.2.0"></script>
+  <script src="assets/js/api.js?v=2.2.0"></script>
+  <script src="assets/js/icons.js?v=2.2.0"></script>
+  <script src="assets/js/data.js?v=2.2.0"></script>
+  <script src="assets/js/map.js?v=2.2.0"></script>
+  <script src="assets/js/dashboard.js?v=2.2.0"></script>
+  <script src="assets/js/request.js?v=2.2.0"></script>
+  <script src="assets/js/soil.js?v=2.2.0"></script>
+  <script src="assets/js/hub.js?v=2.2.0"></script>
+  <script src="assets/js/app.js?v=2.2.0"></script>
 </body>
 </html>

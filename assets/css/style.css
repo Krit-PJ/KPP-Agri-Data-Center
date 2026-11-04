@@ -324,3 +324,60 @@ body[data-view="map"] .sitefoot { display: none; }
   .float.bl { bottom: 112px; }
   .legend .soil-lg { flex-direction: column; align-items: flex-start; gap: 2px; font-size: 11px; }
 }
+
+/* ===== v2.2: ชั้นข้อมูลหลายชั้น · ศูนย์และกลุ่ม ===== */
+@media (max-width: 760px) { .admin-btn { margin-left: auto; } }
+.foot-counter { margin-top: 4px; font-weight: 500; color: var(--ink); }
+.panel-counter { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--ink-2); text-align: center; }
+/* จุดบนแผนที่: divIcon ใน pane "points" (เหนือชั้นอำเภอ) */
+.pt-ic { background: none; border: 0; }
+.pt-hit { display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pt-hit svg { filter: drop-shadow(0 1px 1.5px rgba(0,0,0,.45)); transition: transform .12s; }
+.pt-ic:hover .pt-hit svg, .pt-ic:focus .pt-hit svg { transform: scale(1.25); }
+.layer-toggle .lg-shape { display: inline-flex; gap: 2px; align-items: center; min-width: 28px; }
+.layer-toggle .lg-ramp { display: inline-block; width: 28px; height: 10px; border-radius: 3px; background: linear-gradient(90deg,#e6f4ea,#5fb87c,#0e4d22); }
+.panel-sec .sec-label small { color: var(--muted); font-weight: 400; }
+#layer-panel .layer-toggle + .layer-toggle { margin-top: 7px; }
+#layer-panel.crop-off .crop-sec { opacity: .4; pointer-events: none; }
+.legend .pt-lg { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-2); align-items: center; }
+.legend .lg-title + .bar ~ .pt-lg, .legend .ends + .pt-lg { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+.legend .pt-lg span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.legend.empty { display: none; }
+.kpi-strip.hidden { display: none; }
+.cropbar.dim { opacity: .45; }
+.soil-pop .pop-kind { display: flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--ink-2); margin-bottom: 2px; }
+.soil-pop .tag { background: #6b7682; }
+.soil-pop .tag.farm { background: #6250d6; } .soil-pop .tag.lc { background: #0f766e; }
+.soil-pop .pop-hl { font-size: 12.5px; margin-top: 6px; } .soil-pop .pop-hl ul { margin: 3px 0 0; padding-left: 18px; }
+.info-card dt svg { vertical-align: -2px; margin-right: 3px; }
+/* แท็บย่อย ศูนย์และกลุ่ม */
+.hub-tabs { grid-column: span 12; display: flex; gap: 6px; background: var(--surface); border-radius: 14px; padding: 5px; box-shadow: var(--shadow); overflow-x: auto; scrollbar-width: none; }
+.hub-tabs button { flex: 1; border: 0; background: none; border-radius: 10px; padding: 9px 12px; font: inherit; font-size: 14px; font-weight: 500; color: var(--ink-2); cursor: pointer; white-space: nowrap; }
+.hub-tabs button.on { background: var(--green); color: #fff; }
+.hub-tabs button:not(.on):hover { background: var(--bg); }
+.cy-card { grid-column: span 12; padding: 12px 16px; }
+.cy-card .switch { display: flex; flex-direction: row; justify-content: flex-start; align-items: center; gap: 8px; font-weight: 500; cursor: pointer; }
+.cy-card .switch input { width: 18px; height: 18px; }
+.note { font-size: 12.5px; color: #6b5200; background: #fff7e0; border-radius: 10px; padding: 8px 12px; margin: 10px 0 4px; line-height: 1.6; }
+.soil-table-card .note { color: var(--ink-2); background: var(--bg); }
+.tbl-h { margin: 0 0 8px; font-size: 15px; }
+.nocoord { display: inline-block; font-size: 11.5px; color: #8a5a00; background: #fff3cd; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+#farm-table td, #lc-table td { white-space: normal; text-align: left; } #farm-table td.n, #lc-table td.n { text-align: right; }
+#farm-table th, #lc-table th { text-align: left; }
+#lc-table td.small { font-size: 12.5px; color: var(--ink-2); }
+.soil-dash .lc-type-card { grid-column: span 8; }
+.cv.tall { height: 420px; }
+@media (max-width: 1100px) { .soil-dash .lc-type-card { grid-column: span 12; } }
+@media (max-width: 760px) {
+  #farm-table .hide-m, #lc-table .hide-m { display: none; }
+  .hub-tabs button { font-size: 13px; padding: 8px 8px; }
+  .cv.tall { height: 520px; }
+}
+@media (max-width: 760px) {
+  .legend { width: auto; max-width: 64vw; }
+  .legend .bar { min-width: 120px; }
+  .legend .pt-lg { display: grid; grid-template-columns: auto auto; gap: 1px 8px; font-size: 10.5px; }
+  .legend .pt-lg svg { width: 10px; height: 10px; }
+}
+.tbl-h { padding: 12px 16px 0; }
+#view-lc .tbl-wrap { max-height: none; }

@@ -211,3 +211,62 @@ test('admin access request: phone + password, super approves; preapproved phone 
   assert.ok(login(g, '0899999999', 'Pass#2026a'));
   assert.match(g.post({ method: 'superClaimResend' }).error, /มี Super Admin แล้ว/);
 });
+
+test('v2.2 datasets: seeds, public allowlist, edit/delete/conflict/audit, roles', () => {
+  const { g, out } = boot();
+  assert.match(out.join('\n'), /กลุ่มแปลงใหญ่ 107 แถว/);
+  const b = g.get({ action: 'bootstrap' }).result;
+  assert.strictEqual(b.version, '2.2.0');
+  assert.deepStrictEqual([b.farms.length, b.lc.length, b.lcnet.length, b.lctype.length], [107, 11, 11, 18]);
+  const pub = JSON.stringify([b.farms, b.lc, b.soil]);
+  assert.ok(!/"(manager\w*|chair\w*|farmer\w*|officer\w*|\w*phone)":/.test(pub), 'no PII keys in public payload');
+  const sup = login(g, 'krit', 'Dev#pass2026');
+  assert.ok(g.post({ method: 'adminSave', token: sup, args: [{ username: '0812345678', name: 'แอดมิน', role: 'admin', password: 'Temp@2026x' }] }).ok);
+  const adm = login(g, '0812345678', 'Temp@2026x');
+  const schema = g.post({ method: 'dsSchema', token: adm }).result;
+  assert.deepStrictEqual(schema.map((d) => d.name), ['crops', 'soil', 'farm', 'lc', 'lcnet', 'lctype']);
+  assert.strictEqual(schema[0].canDelete, false);
+  assert.ok(schema.find((d) => d.name === 'farm').fields.find((f) => f.key === 'chair_phone').pii);
+  // admin เห็นและแก้ข้อมูลส่วนบุคคลได้
+  let list = g.post({ method: 'dsList', token: adm, args: [{ dataset: 'farm' }] }).result.rows;
+  assert.strictEqual(list.length, 107);
+  const f0 = list[0];
+  const r = g.post({ method: 'dsSave', token: adm, args: [{ dataset: 'farm', id: f0._id, v: f0._v, item: { members: 123, chair: 'นายทดสอบ ระบบ', chair_phone: '0898765432' } }] });
+  assert.ok(r.ok, r.error);
+  assert.match(r.result.changed, /members: 100 → 123/);
+  // ตรวจชนกัน: ใช้ v เดิมอีกครั้ง
+  assert.match(g.post({ method: 'dsSave', token: adm, args: [{ dataset: 'farm', id: f0._id, v: f0._v, item: { members: 1 } }] }).error, /CONFLICT/);
+  // log มีค่าก่อน-หลัง แต่ไม่มีค่าข้อมูลส่วนบุคคล
+  const log = JSON.stringify(g.ss.getSheetByName('admin_log').rows);
+  assert.ok(log.includes('ds_update:farm') && !log.includes('นายทดสอบ') && !log.includes('0898765432'));
+  const b2 = JSON.stringify(g.get({ action: 'bootstrap' }).result);
+  assert.ok(b2.includes('"members":123') && !b2.includes('นายทดสอบ'));
+  // validation
+  assert.match(g.post({ method: 'dsSave', token: adm, args: [{ dataset: 'lc', item: { name: 'x', lat: 40, lng: 99 } }] }).error, /ประเทศไทย/);
+  const add = g.post({ method: 'dsSave', token: adm, args: [{ dataset: 'lctype', item: { type: 'ทดสอบ', count: 2 } }] });
+  assert.ok(add.ok, add.error);
+  assert.match(g.post({ method: 'dsSave', token: adm, args: [{ dataset: 'lctype', item: { type: 'ทดสอบ', count: 3 } }] }).error, /มีแถว/);
+  // ลบ: admin ไม่ได้, super ได้
+  assert.match(g.post({ method: 'dsDelete', token: adm, args: [{ dataset: 'lctype', id: 'ทดสอบ', v: add.result.item._v }] }).error, /Super Admin/);
+  assert.ok(g.post({ method: 'dsDelete', token: sup, args: [{ dataset: 'lctype', id: 'ทดสอบ', v: add.result.item._v }] }).ok);
+  assert.strictEqual(g.get({ action: 'bootstrap' }).result.lctype.length, 18);
+  // crops: แก้รายแถว
+  const c = g.post({ method: 'dsList', token: adm, args: [{ dataset: 'crops' }] }).result.rows;
+  assert.strictEqual(c.length, 946);
+  const c0 = c[0];
+  assert.ok(g.post({ method: 'dsSave', token: adm, args: [{ dataset: 'crops', id: c0._id, v: c0._v, item: { planted: 999 } }] }).ok);
+  assert.strictEqual(g.get({ action: 'bootstrap' }).result.rows.find((x) => x[0] === c0.year && x[1] === c0.crop && x[2] === c0.district_code)[4], 999);
+  // import upsert (ไฟล์พิกัด) — คงข้อมูลส่วนบุคคลเดิม
+  const im = g.post({ method: 'dsImport', token: adm, args: [{ dataset: 'farm', mode: 'upsert', rows: [{ id: f0.id, lat: 16.5, lng: 99.5, coord_note: 'ทดสอบ' }], fileName: 'xy.xlsx' }] });
+  assert.ok(im.ok, im.error);
+  list = g.post({ method: 'dsList', token: adm, args: [{ dataset: 'farm' }] }).result.rows;
+  const f1 = list.find((x) => x.id === f0.id);
+  assert.deepStrictEqual([f1.lat, f1.chair, f1.members], [16.5, 'นายทดสอบ ระบบ', 123]);
+  // import replace — แถวใหม่ไม่มีชื่อประธาน ให้คงค่าเดิม
+  const rep = list.map(({ _id, _v, chair, chair_phone, ...x }) => x);
+  assert.ok(g.post({ method: 'dsImport', token: adm, args: [{ dataset: 'farm', mode: 'replace', rows: rep }] }).ok);
+  assert.strictEqual(g.post({ method: 'dsList', token: adm, args: [{ dataset: 'farm' }] }).result.rows.find((x) => x.id === f0.id).chair, 'นายทดสอบ ระบบ');
+  assert.ok(g.ss.getSheets().some((s) => s.getName().startsWith('_bak_large_farms_')));
+  assert.match(g.post({ method: 'dsImport', token: adm, args: [{ dataset: 'crops', rows: [{}] }] }).error, /แท็บเดิม/);
+  assert.match(g.post({ method: 'dsList', args: [{ dataset: 'farm' }] }).error, /ADMIN_SESSION_EXPIRED/);
+});

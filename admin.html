@@ -8,8 +8,8 @@
   <title>ผู้ดูแลระบบ | KPP Agri Data Center</title>
   <link rel="icon" href="assets/img/logo-doae.png" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/style.css?v=2.1.1" />
-  <link rel="stylesheet" href="assets/css/admin.css?v=2.1.1" />
+  <link rel="stylesheet" href="assets/css/style.css?v=2.2.0" />
+  <link rel="stylesheet" href="assets/css/admin.css?v=2.2.0" />
 </head>
 <body class="adm">
   <header class="appbar">
@@ -70,6 +70,7 @@
   <section id="app" class="hidden">
     <nav class="adm-tabs" id="adm-tabs">
       <button data-tab="import">📤 นำเข้าข้อมูล</button>
+      <button data-tab="data">🗂️ ตารางข้อมูล</button>
       <button data-tab="history">🕘 ประวัติการนำเข้า</button>
       <button data-tab="requests">📥 คำขอดาวน์โหลด <span class="badge" id="pending-badge"></span></button>
       <button data-tab="soil">🧪 ศดปช.</button>
@@ -106,6 +107,36 @@
       </div>
 
       <!-- HISTORY -->
+      <!-- DATA TABLES -->
+      <div class="tab" id="tab-data">
+        <div class="card pad">
+          <h3>ตารางข้อมูลแต่ละชั้นข้อมูล</h3>
+          <p class="muted">เพิ่ม แก้ไข ข้อมูลได้โดยตรง (ลบได้เฉพาะ Super Admin) · ทุกการแก้ไขบันทึกค่าก่อน–หลังไว้ในบันทึกการทำงาน · ช่องที่มี 🔒 เป็นข้อมูลส่วนบุคคล เห็นเฉพาะผู้ดูแล ไม่แสดงบนเว็บสาธารณะ</p>
+          <div class="chips" id="ds-pick"></div>
+          <p class="note" id="ds-note" hidden></p>
+          <div class="ds-bar">
+            <input id="ds-q" placeholder="🔍 ค้นหาในตาราง…" />
+            <label class="chk"><input type="checkbox" id="ds-pii" /> 🔒 แสดงช่องข้อมูลส่วนบุคคล</label>
+            <span class="muted" id="ds-count"></span>
+            <span class="sp"></span>
+            <button class="btn sm" id="ds-reload">🔄 โหลดใหม่</button>
+            <label class="btn sm hidden" id="ds-import-btn">📂 นำเข้าไฟล์<input type="file" id="ds-file" accept=".xlsx,.xls,.csv" hidden /></label>
+            <button class="btn sm primary" id="ds-add">➕ เพิ่มแถว</button>
+          </div>
+          <div id="ds-import"></div>
+          <div class="tbl-wrap tall"><table id="ds-table"></table></div>
+          <div class="pager" id="ds-pager"></div>
+        </div>
+        <dialog id="ds-dialog" class="ds-dialog">
+          <form method="dialog" id="ds-form">
+            <h3 id="ds-form-h">แก้ไข</h3>
+            <div class="grid2" id="ds-fields"></div>
+            <div class="form-msg" id="ds-msg"></div>
+            <div class="row-btns"><button class="btn primary" type="submit" value="save">บันทึก</button><button class="btn" type="button" id="ds-cancel">ยกเลิก</button></div>
+          </form>
+        </dialog>
+      </div>
+
       <div class="tab" id="tab-history"><div class="card pad"><h3>ประวัติการนำเข้า</h3><p class="muted">ย้อนกลับได้เฉพาะการนำเข้าล่าสุด (ระบบเก็บสำเนาสำรอง 10 ครั้งล่าสุด)</p><div class="tbl-wrap"><table id="hist-table"></table></div></div></div>
 
       <!-- REQUESTS -->
@@ -196,11 +227,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="assets/js/config.js?v=2.1.1"></script>
-  <script src="assets/js/api.js?v=2.1.1"></script>
-  <script src="assets/js/icons.js?v=2.1.1"></script>
-  <script src="assets/js/admin/soil-parser.js?v=2.1.1"></script>
-  <script src="assets/js/admin/importer.js?v=2.1.1"></script>
-  <script src="assets/js/admin/admin.js?v=2.1.1"></script>
+  <script src="assets/js/config.js?v=2.2.0"></script>
+  <script src="assets/js/api.js?v=2.2.0"></script>
+  <script src="assets/js/icons.js?v=2.2.0"></script>
+  <script src="assets/js/admin/soil-parser.js?v=2.2.0"></script>
+  <script src="assets/js/admin/importer.js?v=2.2.0"></script>
+  <script src="assets/js/admin/farm-parser.js?v=2.2.0"></script>
+  <script src="assets/js/admin/admin.js?v=2.2.0"></script>
+  <script src="assets/js/admin/datatable.js?v=2.2.0"></script>
 </body>
 </html>

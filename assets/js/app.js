@@ -2,8 +2,10 @@
 (async function () {
   const C = window.APP_CONFIG;
   const D = window.AgriData;
-  const VIEWS = ['map', 'dashboard', 'soil', 'request', 'links'];
-  const state = { crop: null, year: null, years: [], metric: 'planted', openDistrict: null, soil: false };
+  const VIEWS = ['map', 'dashboard', 'soil', 'farm', 'lc', 'request', 'links'];
+  const HUB = ['soil', 'farm', 'lc']; // หน้า "ศูนย์และกลุ่ม"
+  const state = { crop: null, year: null, years: [], metric: 'planted', openDistrict: null,
+    layers: { crop: true, soil: false, farm: false, lc: false } };
 
   // โลโก้
   const setLogo = (id, src) => { const el = document.getElementById(id); el.src = src; el.onerror = () => el.classList.add('err'); };
@@ -32,7 +34,8 @@
     if (ys.length) state.years = ys;
     else if (!state.years.length) state.years = [latest - 1, latest];
     if (q.get('metric') && D.METRICS[q.get('metric')]) state.metric = q.get('metric');
-    if (q.has('soil')) state.soil = q.get('soil') === '1';
+    if (q.has('layers')) { const ls = q.get('layers').split(','); Object.keys(state.layers).forEach((k) => { state.layers[k] = ls.includes(k); }); }
+    else if (q.has('soil')) state.layers.soil = q.get('soil') === '1'; // ลิงก์รูปแบบเดิม v2.1
   }
   applyQuery(parseHash().q);
 
@@ -40,6 +43,8 @@
   Dashboard.init(ctx, state);
   RequestForm.init(ctx);
   SoilView.init(ctx);
+  FarmView.init(ctx);
+  LcView.init(ctx);
 
   // ---------- แถบไอคอนพืช (ใช้ร่วมกันทั้งแผนที่และแดชบอร์ด) ----------
   function renderCropbar() {
@@ -56,7 +61,7 @@
     const q = new URLSearchParams();
     if (view === 'map' || view === 'dashboard') {
       q.set('crop', state.crop);
-      if (view === 'map') { q.set('year', state.year); q.set('metric', state.metric); if (state.soil) q.set('soil', '1'); } else q.set('years', [...state.years].sort().join(','));
+      if (view === 'map') { q.set('year', state.year); q.set('metric', state.metric); const ls = Object.keys(state.layers).filter((k) => state.layers[k]); if (ls.join() !== 'crop') q.set('layers', ls.join(',') || 'none'); } else q.set('years', [...state.years].sort().join(','));
     }
     const h = '#' + view + (q.toString() ? '?' + q.toString() : '');
     if (location.hash !== h) history.replaceState(null, '', location.pathname + location.search + h);
@@ -66,13 +71,15 @@
     current = view;
     document.body.dataset.view = view;
     document.querySelectorAll('.view').forEach((s) => s.classList.toggle('active', s.id === 'view-' + view));
-    document.querySelectorAll('[data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === view));
+    document.querySelectorAll('[data-go]').forEach((b) => b.classList.toggle('on', b.dataset.go === view || (b.dataset.hub === '1' && HUB.includes(view))));
     document.getElementById('cropbar').classList.toggle('hidden', !(view === 'map' || view === 'dashboard'));
     renderCropbar();
     if (view === 'map') { SmartMap.render(); SmartMap.invalidate(); }
     if (view === 'dashboard') Dashboard.render();
     if (view === 'links') renderLinks();
     if (view === 'soil') SoilView.render();
+    if (view === 'farm') FarmView.render();
+    if (view === 'lc') LcView.render();
     if (changed) window.scrollTo(0, 0);
     writeHash(view);
   }
@@ -130,7 +137,8 @@
       try { newVisitor = localStorage.getItem('kpp_seen') !== today; } catch (e) { newVisitor = true; }
       visits = counted ? await API.get('visits') : await API.get('hit', { v: newVisitor ? '1' : '0' });
       try { sessionStorage.setItem('kpp_hit', today); localStorage.setItem('kpp_seen', today); } catch (e) { /* ignore */ }
-      document.getElementById('counter-chip').textContent = `👁 วันนี้ ${D.fmt(visits.today)} · รวม ${D.fmt(visits.total)}`;
+      const txt = `👁 ผู้เข้าชมวันนี้ ${D.fmt(visits.today)} ครั้ง · รวม ${D.fmt(visits.total)} ครั้ง`;
+      document.querySelectorAll('[data-counter]').forEach((el) => { el.textContent = txt; el.hidden = false; });
       if (current === 'links') renderVisits();
     } catch (e) { console.warn('[counter]', e.message); }
   }

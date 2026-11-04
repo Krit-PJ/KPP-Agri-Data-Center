@@ -1,0 +1,334 @@
+{
+ "source": "บัญชี ศพก. หลัก ปี 2567 / รายละเอียด ศพก. ปี 2566 / อินโฟกราฟิก ศพก. (30 ส.ค. 2567)",
+ "rows": [
+  {
+   "id": "L01",
+   "name": "ศพก. อำเภอเมืองกำแพงเพชร",
+   "district": "เมืองกำแพงเพชร",
+   "district_code": "6201",
+   "moo": "6",
+   "tambon": "เทพนคร",
+   "commodity": "ข้าว",
+   "lat": 16.474712,
+   "lng": 99.591782,
+   "utm_x": 563165,
+   "utm_y": 1821539,
+   "target_area": 42000,
+   "target_farmers": 1200,
+   "highlight": "การใช้สารชีวภัณฑ์ในการป้องกันกำจัดศัตรูข้าว",
+   "network": 23,
+   "coord_note": ""
+  },
+  {
+   "id": "L02",
+   "name": "ศพก. อำเภอไทรงาม",
+   "district": "ไทรงาม",
+   "district_code": "6202",
+   "moo": "8",
+   "tambon": "มหาชัย",
+   "commodity": "ข้าว",
+   "lat": 16.502324,
+   "lng": 99.772768,
+   "utm_x": 582472,
+   "utm_y": 1824659,
+   "target_area": 202979,
+   "target_farmers": 6804,
+   "highlight": "การใช้สารชีวภาพกำจัดแมลงศัตรูพืช; การลดต้นทุนการผลิตข้าว; การใช้ปุ๋ยตามค่าวิเคราะห์ดิน; การผลิตข้าวปลอดภัย (GAP)",
+   "network": 16,
+   "coord_note": ""
+  },
+  {
+   "id": "L03",
+   "name": "ศพก. อำเภอคลองลาน",
+   "district": "คลองลาน",
+   "district_code": "6203",
+   "moo": "12",
+   "tambon": "คลองลานพัฒนา",
+   "commodity": "ไร่นาสวนผสม",
+   "lat": 16.109798,
+   "lng": 99.38451,
+   "utm_x": 541117,
+   "utm_y": 1781119,
+   "target_area": 100,
+   "target_farmers": 100,
+   "highlight": "การจัดการพื้นที่ตามหลักเกษตรทฤษฎีใหม่",
+   "network": 12,
+   "coord_note": ""
+  },
+  {
+   "id": "L04",
+   "name": "ศพก. อำเภอขาณุวรลักษบุรี",
+   "district": "ขาณุวรลักษบุรี",
+   "district_code": "6204",
+   "moo": "8",
+   "tambon": "วังหามแห",
+   "commodity": "มันสำปะหลัง",
+   "lat": 16.038856,
+   "lng": 99.575943,
+   "utm_x": 561610,
+   "utm_y": 1773319,
+   "target_area": 166818,
+   "target_farmers": 6433,
+   "highlight": "การเพิ่มประสิทธิภาพการผลิตมันสำปะหลัง; การปลูกพืชทางเลือกทดแทนมันสำปะหลัง",
+   "network": 18,
+   "coord_note": ""
+  },
+  {
+   "id": "L05",
+   "name": "ศพก. อำเภอคลองขลุง",
+   "district": "คลองขลุง",
+   "district_code": "6205",
+   "moo": "7",
+   "tambon": "หัวถนน",
+   "commodity": "ข้าว",
+   "lat": 16.288503,
+   "lng": 99.604736,
+   "utm_x": 564609,
+   "utm_y": 1800944,
+   "target_area": 180150,
+   "target_farmers": 6201,
+   "highlight": "การลดต้นทุนการผลิตข้าว; การใช้สารชีวภัณฑ์ลดต้นทุน",
+   "network": 23,
+   "coord_note": ""
+  },
+  {
+   "id": "L06",
+   "name": "ศพก. อำเภอพรานกระต่าย",
+   "district": "พรานกระต่าย",
+   "district_code": "6206",
+   "moo": "3",
+   "tambon": "เขาคีริส",
+   "commodity": "ข้าว",
+   "lat": 16.557659,
+   "lng": 99.728685,
+   "utm_x": 577745,
+   "utm_y": 1830763,
+   "target_area": null,
+   "target_farmers": null,
+   "highlight": "การใช้สารชีวภัณฑ์",
+   "network": 19,
+   "coord_note": ""
+  },
+  {
+   "id": "L07",
+   "name": "ศพก. อำเภอลานกระบือ",
+   "district": "ลานกระบือ",
+   "district_code": "6207",
+   "moo": "2",
+   "tambon": "หนองหลวง",
+   "commodity": "ข้าว",
+   "lat": 16.592702,
+   "lng": 99.736925,
+   "utm_x": 578610,
+   "utm_y": 1834643,
+   "target_area": 157876,
+   "target_farmers": 4762,
+   "highlight": "การลดต้นทุนการผลิตข้าว; การผลิตเมล็ดพันธุ์ข้าว",
+   "network": 20,
+   "coord_note": ""
+  },
+  {
+   "id": "L08",
+   "name": "ศพก. อำเภอทรายทองวัฒนา",
+   "district": "ทรายทองวัฒนา",
+   "district_code": "6208",
+   "moo": "9",
+   "tambon": "ทุ่งทอง",
+   "commodity": "ข้าว",
+   "lat": 16.34919,
+   "lng": 99.893627,
+   "utm_x": 595446,
+   "utm_y": 1807771,
+   "target_area": 48250,
+   "target_farmers": 500,
+   "highlight": "การลดต้นทุนการผลิตข้าว; การผลิตข้าวอินทรีย์",
+   "network": 18,
+   "coord_note": ""
+  },
+  {
+   "id": "L09",
+   "name": "ศพก. อำเภอปางศิลาทอง",
+   "district": "ปางศิลาทอง",
+   "district_code": "6209",
+   "moo": "9",
+   "tambon": "โพธิ์ทอง",
+   "commodity": "ข้าว",
+   "lat": 16.111915,
+   "lng": 99.531454,
+   "utm_x": 556830,
+   "utm_y": 1781388,
+   "target_area": 45589,
+   "target_farmers": 6490,
+   "highlight": "การลดต้นทุนการผลิตข้าว; การเพิ่มผลผลิตข้าว",
+   "network": 16,
+   "coord_note": ""
+  },
+  {
+   "id": "L10",
+   "name": "ศพก. อำเภอบึงสามัคคี",
+   "district": "บึงสามัคคี",
+   "district_code": "6210",
+   "moo": "2",
+   "tambon": "ระหาน",
+   "commodity": "ข้าว",
+   "lat": 16.140754,
+   "lng": 99.972038,
+   "utm_x": 603931,
+   "utm_y": 1784750,
+   "target_area": null,
+   "target_farmers": null,
+   "highlight": "การจัดการศัตรูพืชแบบผสมผสาน",
+   "network": 30,
+   "coord_note": ""
+  },
+  {
+   "id": "L11",
+   "name": "ศพก. อำเภอโกสัมพีนคร",
+   "district": "โกสัมพีนคร",
+   "district_code": "6211",
+   "moo": "8",
+   "tambon": "ลานดอกไม้ตก",
+   "commodity": "ข้าว",
+   "lat": 16.582413,
+   "lng": 99.45304,
+   "utm_x": 548329,
+   "utm_y": 1833415,
+   "target_area": null,
+   "target_farmers": null,
+   "highlight": "การลดต้นทุนการผลิตข้าว; ส่งเสริมการใช้เมล็ดพันธุ์ข้าวพันธุ์ดี",
+   "network": 11,
+   "coord_note": ""
+  }
+ ],
+ "network": [
+  {
+   "district": "เมืองกำแพงเพชร",
+   "district_code": "6201",
+   "count": 23
+  },
+  {
+   "district": "ไทรงาม",
+   "district_code": "6202",
+   "count": 16
+  },
+  {
+   "district": "คลองลาน",
+   "district_code": "6203",
+   "count": 12
+  },
+  {
+   "district": "ขาณุวรลักษบุรี",
+   "district_code": "6204",
+   "count": 18
+  },
+  {
+   "district": "คลองขลุง",
+   "district_code": "6205",
+   "count": 23
+  },
+  {
+   "district": "พรานกระต่าย",
+   "district_code": "6206",
+   "count": 19
+  },
+  {
+   "district": "ลานกระบือ",
+   "district_code": "6207",
+   "count": 20
+  },
+  {
+   "district": "ทรายทองวัฒนา",
+   "district_code": "6208",
+   "count": 18
+  },
+  {
+   "district": "ปางศิลาทอง",
+   "district_code": "6209",
+   "count": 16
+  },
+  {
+   "district": "บึงสามัคคี",
+   "district_code": "6210",
+   "count": 30
+  },
+  {
+   "district": "โกสัมพีนคร",
+   "district_code": "6211",
+   "count": 11
+  }
+ ],
+ "types": [
+  {
+   "type": "ศดปช.",
+   "count": 11
+  },
+  {
+   "type": "ศชข.",
+   "count": 11
+  },
+  {
+   "type": "ท่องเที่ยวเชิงเกษตร",
+   "count": 1
+  },
+  {
+   "type": "ปราชญ์ชาวบ้าน",
+   "count": 4
+  },
+  {
+   "type": "การจัดการดิน",
+   "count": 2
+  },
+  {
+   "type": "แปรรูปผลิตผล",
+   "count": 22
+  },
+  {
+   "type": "ศูนย์ข้าวชุมชน",
+   "count": 35
+  },
+  {
+   "type": "ประมง",
+   "count": 10
+  },
+  {
+   "type": "ปศุสัตว์",
+   "count": 6
+  },
+  {
+   "type": "พืชไร่",
+   "count": 12
+  },
+  {
+   "type": "มาตรฐานการเกษตร",
+   "count": 7
+  },
+  {
+   "type": "ไม้ผล",
+   "count": 11
+  },
+  {
+   "type": "ไม้ยืนต้น",
+   "count": 4
+  },
+  {
+   "type": "เศรษฐกิจเกษตร",
+   "count": 3
+  },
+  {
+   "type": "หม่อนไหม",
+   "count": 1
+  },
+  {
+   "type": "พืชผัก",
+   "count": 8
+  },
+  {
+   "type": "เศรษฐกิจพอเพียง",
+   "count": 57
+  },
+  {
+   "type": "อื่นๆ (กล้วยไม้)",
+   "count": 1
+  }
+ ]
+}

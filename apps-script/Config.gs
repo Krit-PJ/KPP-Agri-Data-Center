@@ -11,6 +11,8 @@
  *   Counter.gs  ตัวนับผู้เข้าใช้งาน
  *   Links.gs    ลิงก์เชื่อมโยงเว็บไซต์ (Super Admin แก้ไขได้)
  *   Soil.gs     ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)  · SoilSeed.gs ข้อมูลตั้งต้น
+ *   Datasets.gs ทะเบียนชุดข้อมูล: ตารางข้อมูลแต่ละชั้นข้อมูล เพิ่ม/แก้ไข/ลบ + API สาธารณะแบบ allowlist
+ *   FarmSeed.gs ข้อมูลตั้งต้น กลุ่มแปลงใหญ่ / ศพก. (ไม่มีข้อมูลส่วนบุคคล)
  *   AdminRequests.gs  ขอสิทธิ์ Admin → Super Admin อนุมัติ
  *   Setup.gs    setupSystem() — รันครั้งแรก / หลังอัปเดตโค้ด
  *
@@ -21,7 +23,7 @@
  *   SUPER_ADMIN_USERNAME / SUPER_ADMIN_PASSWORD  ใช้ครั้งแรกเท่านั้น รหัสผ่านถูกลบทันทีหลังเก็บ hash
  *   ADMIN_PREAPPROVED_PHONES  เบอร์ Admin ที่อนุมัติล่วงหน้า (คั่นด้วย ,)
  */
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';
 const DEFAULT_SPREADSHEET_ID = '1trKwin7IaNLYQtoxzWZr2wMo2fPGxhynmEzIvLg7DYE';
 const DEFAULT_SITE_URL = 'https://krit-pj.github.io/KPP-Agri-Data-Center/';
 

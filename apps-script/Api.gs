@@ -24,6 +24,12 @@ const API_METHODS = {
   soilList: { role: 'admin', fn: function () { return soilList_(); } },
   soilImport: { role: 'admin', fn: function (a, s) { return soilImport_(a[0], s); } },
   soilUpdate: { role: 'admin', fn: function (a, s) { return soilUpdate_(a[0], s); } },
+  // ตารางข้อมูลแต่ละชั้นข้อมูล (ลบ = Super Admin)
+  dsSchema: { role: 'admin', fn: function (a, s) { return dsSchema_(s); } },
+  dsList: { role: 'admin', fn: function (a) { return dsList_(a[0]); } },
+  dsSave: { role: 'admin', fn: function (a, s) { return dsSave_(a[0], s); } },
+  dsDelete: { role: 'super', fn: function (a, s) { return dsDelete_(a[0], s); } },
+  dsImport: { role: 'admin', fn: function (a, s) { return dsImport_(a[0], s); } },
   adminLogout: { role: 'admin', fn: function (a, s, t) { return adminLogout_(t); } },
   adminMe: { role: 'admin', fn: function (a, s) { return { username: s.username, name: s.name, role: s.role, version: APP_VERSION }; } },
   adminChangePassword: { role: 'admin', fn: function (a, s) { return adminChangePassword_(a[0], s); } },

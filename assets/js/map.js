@@ -2,7 +2,7 @@
 window.SmartMap = (function () {
   const C = window.APP_CONFIG;
   const D = window.AgriData;
-  let map, layer, base, labels = [], ctx, state, sparkChart, soilLayer;
+  let map, layer, base, labels = [], ctx, state, sparkChart;
   const SOIL_COLOR = { 'หลัก': '#eb6834', 'เครือข่าย': '#2a78d6' };
 
   const RAMP = ['#e6f4ea', '#a8dbb7', '#5fb87c', '#258a47', '#0e4d22']; // sequential: เขียวเดียว อ่อน→เข้ม
@@ -28,11 +28,18 @@ window.SmartMap = (function () {
     map.attributionControl.setPrefix('© 2569 Dr. Kitti PhoJuang · <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a>');
     setBase('light');
     layer = L.geoJSON(ctx.geo, { style, onEachFeature }).addTo(map);
-    soilLayer = L.layerGroup();
-    const tg = document.getElementById('tg-soil');
-    document.getElementById('soil-count').textContent = ctx.soil.length ? `(${ctx.soil.length})` : '(ไม่มีข้อมูล)';
-    tg.checked = !!state.soil;
-    tg.addEventListener('change', () => { state.soil = tg.checked; renderSoil(); render(); if (window.App) App.writeHash(); });
+    map.createPane('points').style.zIndex = 660; // เหนือชั้นอำเภอ (400) และป้ายชื่ออำเภอ (650) ใต้ป๊อปอัป (700)
+    const cnt = (list) => { const n = list.length, p = list.filter((o) => o.lat !== null).length; return n ? (p === n ? `(${n})` : `(${p}/${n} มีพิกัด)`) : '(ไม่มีข้อมูล)'; };
+    document.getElementById('soil-count').textContent = cnt(ctx.soil);
+    document.getElementById('farm-count').textContent = cnt(ctx.farms);
+    document.getElementById('lc-count').textContent = cnt(ctx.lc);
+    ['soil', 'farm', 'lc'].forEach((k) => { document.getElementById('lgs-' + k).innerHTML = legendShape(k); });
+    ['crop', 'soil', 'farm', 'lc'].forEach((k) => document.getElementById('tg-' + k).addEventListener('change', (e) => {
+      state.layers[k] = e.target.checked; syncToggles();
+      if (k === 'crop' && !state.layers.crop) closeInfo();
+      renderPoints(); render(); if (window.App) App.writeHash();
+    }));
+    syncToggles();
     resetView();
 
     // controls
@@ -74,6 +81,7 @@ window.SmartMap = (function () {
   }
   let rng = [0, 1];
   function style(f) {
+    if (!state.layers.crop) return { fillColor: '#f4f6f8', fillOpacity: 0.35, color: '#3f4a56', weight: 1.4 };
     const v = valueOf(f.properties.code);
     const t = rng[1] > rng[0] ? (v - rng[0]) / (rng[1] - rng[0]) : 1;
     return { fillColor: v > 0 ? colorAt(t) : '#e9ecef', fillOpacity: 0.88, color: '#3f4a56', weight: 1.6 };
@@ -85,6 +93,7 @@ window.SmartMap = (function () {
       click: () => openInfo(f.properties.code),
     });
     l.bindTooltip(() => {
+      if (!state.layers.crop) return `<b>${f.properties.name}</b>`;
       const m = D.METRICS[state.metric];
       return `<b>${f.properties.name}</b><br>${m.label}: ${D.fmt(valueOf(f.properties.code))} ${m.unit}`;
     }, { sticky: true });
@@ -104,18 +113,31 @@ window.SmartMap = (function () {
       .map(([k, m]) => `<button class="metric ${k === state.metric ? 'on' : ''}" data-metric="${k}">${METRIC_ICON[k]} ${m.label}<small>${m.unit}</small></button>`).join('');
   }
 
+  function pointLegend() {
+    const parts = [];
+    if (state.layers.soil) parts.push(`<span>${shapeSvg.circle(12, SOIL_COLOR['หลัก'])} ศดปช. หลัก</span><span>${shapeSvg.circle(12, SOIL_COLOR['เครือข่าย'])} ศดปช. เครือข่าย</span>`);
+    if (state.layers.farm) parts.push(`<span>${shapeSvg.diamond(12, FARM_COLOR)} กลุ่มแปลงใหญ่</span>`);
+    if (state.layers.lc) parts.push(`<span>${shapeSvg.house(13, LC_COLOR)} ศพก. หลัก</span>`);
+    return parts.length ? `<div class="pt-lg">${parts.join('')}</div>` : '';
+  }
+
   function render() {
     renderControls();
     rng = range();
     layer.setStyle(style);
     const m = D.METRICS[state.metric];
-    document.getElementById('map-title').innerHTML = `${CropIcons.svg(state.crop, 20)} ${D.esc(state.crop)} · ปี ${state.year} · ${m.label}`;
-    document.getElementById('legend').innerHTML = `
+    const on = state.layers.crop;
+    const names = [on ? null : 'ชั้นข้อมูลจุด', state.layers.soil && 'ศดปช.', state.layers.farm && 'แปลงใหญ่', state.layers.lc && 'ศพก.'].filter(Boolean);
+    document.getElementById('map-title').innerHTML = on ? `${CropIcons.svg(state.crop, 20)} ${D.esc(state.crop)} · ปี ${state.year} · ${m.label}`
+      : '📍 ' + (names.length > 1 ? names.slice(1).join(' · ') : 'ขอบเขตอำเภอ');
+    document.getElementById('legend').innerHTML = (on ? `
       <div class="lg-title">${m.label} (${m.unit})</div>
       <div class="bar" style="background:linear-gradient(90deg,${RAMP.join(',')})"></div>
       <div class="ends"><span>${D.fmt(isFinite(rng[0]) ? rng[0] : 0)}</span><span>${D.fmt(rng[1])}</span></div>
-      <div class="ends nodata"><span><i></i> ไม่มีการปลูก</span></div>
-      ${state.soil ? '<div class="soil-lg"><span><span class="dot main"></span> ศดปช. หลัก</span><span><span class="dot net"></span> เครือข่าย</span></div>' : ''}`;
+      <div class="ends nodata"><span><i></i> ไม่มีการปลูก</span></div>` : '') + pointLegend();
+    document.getElementById('legend').classList.toggle('empty', !on && !pointLegend());
+    document.getElementById('map-kpis').classList.toggle('hidden', !on);
+    document.getElementById('cropbar').classList.toggle('dim', !on && document.body.dataset.view === 'map');
     const base = D.filter(ctx.rows, { crop: state.crop, year: state.year });
     const k = [
       ['🌱', D.M.planted(base), 'เนื้อที่เพาะปลูก (ไร่)'],
@@ -128,7 +150,22 @@ window.SmartMap = (function () {
     if (state.openDistrict) openInfo(state.openDistrict);
   }
 
+  /** เมื่อปิดชั้นสถิติพืช: คลิกอำเภอแสดงจำนวนศูนย์/กลุ่มในอำเภอ */
+  function openDistrictSummary(code) {
+    const d = ctx.districts.find((x) => x.district_code === code);
+    const n = (list) => list.filter((o) => o.district_code === code);
+    const soil = n(ctx.soil), farms = n(ctx.farms), lc = n(ctx.lc), net = ctx.lcnet.find((x) => x.district_code === code);
+    const top = Object.entries(farms.reduce((a, f) => { a[f.commodity] = (a[f.commodity] || 0) + 1; return a; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    openSheet(`<h4>อ.${D.esc(d.district)}</h4><div class="sub">${D.esc(d.district_en)} · ศูนย์และกลุ่มเกษตรกร</div>
+      <dl><dt>${shapeSvg.circle(12, SOIL_COLOR['หลัก'])} ศดปช.</dt><dd>${soil.length} ศูนย์ · สมาชิก ${D.fmt(soil.reduce((a, c) => a + c.members, 0))} ราย</dd>
+      <dt>${shapeSvg.diamond(12, FARM_COLOR)} กลุ่มแปลงใหญ่</dt><dd>${farms.length} กลุ่ม · สมาชิก ${D.fmt(farms.reduce((a, f) => a + f.members, 0))} ราย</dd>
+      ${top.length ? `<dt>สินค้าหลักของแปลงใหญ่</dt><dd>${top.map(([c, v]) => D.esc(c) + ' ' + v).join(', ')}</dd>` : ''}
+      <dt>${shapeSvg.house(13, LC_COLOR)} ศพก. หลัก</dt><dd>${lc.length ? D.esc(lc[0].commodity) : '–'}</dd>
+      <dt>ศพก. เครือข่าย</dt><dd>${net ? D.fmt(net.count) + ' แห่ง' : '–'}</dd></dl>`);
+  }
+
   function openInfo(code) {
+    if (!state.layers.crop) { openDistrictSummary(code); return; }
     state.openDistrict = code;
     document.getElementById('layer-panel').classList.remove('open');
     const d = ctx.districts.find((x) => x.district_code === code);
@@ -167,47 +204,98 @@ window.SmartMap = (function () {
     setTimeout(() => { map.invalidateSize(); if (!fitted || refit) { resetView(); fitted = true; } }, 60);
   }
 
-  // ---------- ชั้นข้อมูล ศดปช. ----------
+  // ---------- ชั้นข้อมูลจุด: ศดปช. (วงกลม) · กลุ่มแปลงใหญ่ (ข้าวหลามตัด) · ศพก. (รูปบ้าน) ----------
+  // วางใน pane "points" ที่อยู่เหนือชั้นอำเภอเสมอ จึงคลิกได้แม้เมาส์ผ่านขอบอำเภอ
+  const PT = {
+    soil: { label: 'ศดปช.', list: () => ctx.soil },
+    farm: { label: 'กลุ่มแปลงใหญ่', list: () => ctx.farms },
+    lc: { label: 'ศพก. หลัก', list: () => ctx.lc },
+  };
+  const FARM_COLOR = '#6250d6', LC_COLOR = '#0f766e';
+  const shapeSvg = {
+    circle: (sz, fill, dashed) => `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8.6" fill="${fill}" stroke="#fff" stroke-width="2.2"${dashed ? ' stroke-dasharray="3 2"' : ''}/></svg>`,
+    diamond: (sz, fill) => `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20"><path d="M10 1.2 18.8 10 10 18.8 1.2 10Z" fill="${fill}" stroke="#fff" stroke-width="2"/></svg>`,
+    house: (sz, fill) => `<svg width="${sz}" height="${sz}" viewBox="0 0 22 22"><path d="M11 1.5 21 10h-2.6v10.5H3.6V10H1Z" fill="${fill}" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="8.6" y="13" width="4.8" height="7.5" fill="#fff" opacity=".9"/></svg>`,
+  };
+  const legendShape = (k) => k === 'soil' ? shapeSvg.circle(12, SOIL_COLOR['หลัก']) + shapeSvg.circle(12, SOIL_COLOR['เครือข่าย'])
+    : k === 'farm' ? shapeSvg.diamond(13, FARM_COLOR) : shapeSvg.house(15, LC_COLOR);
+  function iconFor(kind, o) {
+    let sz, html;
+    if (kind === 'soil') { sz = Math.round(Math.max(13, Math.min(26, Math.sqrt(o.members) * 2.4))); html = shapeSvg.circle(sz, SOIL_COLOR[o.type] || '#6b7682', !o.verified); }
+    else if (kind === 'farm') { sz = 17; html = shapeSvg.diamond(sz, FARM_COLOR); }
+    else { sz = 25; html = shapeSvg.house(sz, LC_COLOR); }
+    const box = Math.max(sz, 26); // พื้นที่แตะอย่างน้อย 26px
+    return L.divIcon({ className: 'pt-ic pt-' + kind, html: `<span class="pt-hit" style="width:${box}px;height:${box}px">${html}</span>`, iconSize: [box, box], iconAnchor: [box / 2, box / 2], popupAnchor: [0, -sz / 2] });
+  }
+  const row = (k, v) => (v || v === 0 ? `<dt>${k}</dt><dd>${D.esc(v)}</dd>` : '');
   function soilPopup(c) {
     const cls = c.type === 'หลัก' ? 'main' : 'net';
-    const row = (k, v) => (v ? `<dt>${k}</dt><dd>${D.esc(v)}</dd>` : '');
-    return `<div class="soil-pop"><h4>${D.esc(c.name)}</h4>${c.type ? `<span class="tag ${cls}">ศูนย์${D.esc(c.type)}</span>` : ''}
+    return `<div class="soil-pop"><div class="pop-kind">${shapeSvg.circle(12, SOIL_COLOR[c.type] || '#6b7682')} ศูนย์จัดการดินปุ๋ยชุมชน</div><h4>${D.esc(c.name)}</h4>${c.type ? `<span class="tag ${cls}">ศูนย์${D.esc(c.type)}</span>` : ''}
       <dl>${row('อำเภอ', c.district)}${row('ที่ตั้ง', c.location)}${row('สมาชิก', D.fmt(c.members) + ' ราย')}${row('เริ่มดำเนินการ', c.year_start)}
       ${row('ระดับ', c.level)}${row('พืชหลัก', c.crops)}${row('สินค้า/บริการ', c.products)}${row('โครงการ OSS', c.oss ? (c.oss + (c.oss_status ? ' · ' + c.oss_status : '')) : '')}</dl>
       ${!c.verified ? `<div class="warn">⚠️ พิกัดรอตรวจสอบ: ${D.esc(c.note)}</div>` : ''}</div>`;
   }
-  function renderSoil() {
-    if (!soilLayer) return;
-    soilLayer.clearLayers();
-    if (!state.soil) { map.removeLayer(soilLayer); return; }
-    ctx.soil.filter((c) => c.lat !== null && c.lng !== null).forEach((c) => {
-      const m = L.circleMarker([c.lat, c.lng], { radius: Math.max(6, Math.min(16, Math.sqrt(c.members) * 1.6)), color: '#fff', weight: 2,
-        fillColor: SOIL_COLOR[c.type] || '#6b7682', fillOpacity: 0.95, dashArray: c.verified ? null : '3 2' });
-      if (window.innerWidth < 760) m.on('click', () => openSoilSheet(c));
-      else { m.bindPopup(soilPopup(c), { maxWidth: 300, autoPanPaddingTopLeft: L.point(10, 90), autoPanPaddingBottomRight: L.point(10, 110) });
-        m.bindTooltip(D.esc(c.name), { direction: 'top', offset: [0, -6] }); }
-      m.soilId = c.id;
-      soilLayer.addLayer(m);
-    });
-    soilLayer.addTo(map);
+  function farmPopup(f) {
+    const std = [f.gap ? 'GAP' : '', f.organic ? 'อินทรีย์' : ''].filter(Boolean).join(', ');
+    return `<div class="soil-pop"><div class="pop-kind">${shapeSvg.diamond(12, FARM_COLOR)} กลุ่มแปลงใหญ่</div><h4>${D.esc(f.name)}</h4>
+      <span class="tag farm">${D.esc(f.commodity)}</span>${f.year_start ? ` <span class="tag">เริ่มปี ${D.esc(f.year_start)}</span>` : ''}
+      <dl>${row('อำเภอ', f.district)}${row('ตำบล / หมู่', [f.tambon, f.moo ? 'ม.' + f.moo : ''].filter(Boolean).join(' '))}
+      ${row('สมาชิก', D.fmt(f.members) + ' ราย')}${row('พื้นที่แปลงใหญ่', D.fmt(f.plot_area, 2) + ' ไร่ · ' + D.fmt(f.plots) + ' แปลง')}
+      ${row('รวมกลุ่มแบบ', f.grouping)}${row('มาตรฐาน', std)}${row('ตลาด', f.market_after)}</dl>
+      ${f.coord_note && /ตกในอำเภอ/.test(f.coord_note) ? `<div class="warn">⚠️ ${D.esc(f.coord_note.split('; ').pop())}</div>` : ''}</div>`;
   }
+  function lcPopup(c) {
+    const hl = String(c.highlight || '').split(';').map((x) => x.trim()).filter(Boolean);
+    return `<div class="soil-pop"><div class="pop-kind">${shapeSvg.house(13, LC_COLOR)} ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร</div><h4>${D.esc(c.name)}</h4>
+      <span class="tag lc">${D.esc(c.commodity)}</span>
+      <dl>${row('ที่ตั้ง', ['ม.' + c.moo, 'ต.' + c.tambon, 'อ.' + c.district].join(' '))}${row('ศพก. เครือข่าย', c.network ? D.fmt(c.network) + ' แห่ง' : '')}
+      ${row('พื้นที่เป้าหมาย', c.target_area ? D.fmt(c.target_area) + ' ไร่' : '')}${row('เกษตรกรเป้าหมาย', c.target_farmers ? D.fmt(c.target_farmers) + ' ราย' : '')}</dl>
+      ${hl.length ? `<div class="pop-hl"><b>จุดเด่นของศูนย์</b><ul>${hl.map((h) => `<li>${D.esc(h)}</li>`).join('')}</ul></div>` : ''}</div>`;
+  }
+  const POPUP = { soil: soilPopup, farm: farmPopup, lc: lcPopup };
+  const ptLayers = {};
+  function renderPoints() {
+    if (!map) return;
+    Object.keys(PT).forEach((kind) => {
+      if (!ptLayers[kind]) ptLayers[kind] = L.layerGroup();
+      const g = ptLayers[kind];
+      g.clearLayers();
+      if (!state.layers[kind]) { map.removeLayer(g); return; }
+      PT[kind].list().filter((o) => o.lat !== null && o.lng !== null).forEach((o) => {
+        const m = L.marker([o.lat, o.lng], { icon: iconFor(kind, o), pane: 'points', riseOnHover: true, keyboard: true, title: o.name, alt: PT[kind].label + ' ' + o.name });
+        if (isMobile()) m.on('click', () => openSheet(POPUP[kind](o)));
+        else { m.bindPopup(POPUP[kind](o), { maxWidth: 320, autoPanPaddingTopLeft: L.point(10, 90), autoPanPaddingBottomRight: L.point(10, 110) });
+          m.bindTooltip(D.esc(o.name), { direction: 'top', offset: [0, -8] }); }
+        m.ptId = o.id;
+        g.addLayer(m);
+      });
+      g.addTo(map);
+    });
+  }
+  const isMobile = () => window.innerWidth < 760;
   // มือถือ: แสดงรายละเอียดในแผงล่าง (bottom sheet) แทนป๊อปอัปที่ถูกปุ่มลอยบัง
-  function openSoilSheet(c) {
+  function openSheet(html) {
     document.getElementById('layer-panel').classList.remove('open');
     state.openDistrict = null;
     const el = document.getElementById('info-card');
-    el.innerHTML = `<div class="grab"></div><button class="x" onclick="SmartMap.closeInfo()" aria-label="ปิด">✕</button>${soilPopup(c)}`;
+    el.innerHTML = `<div class="grab"></div><button class="x" onclick="SmartMap.closeInfo()" aria-label="ปิด">✕</button>${html}`;
     el.classList.add('open');
   }
-  function focusSoil(id) {
-    state.soil = true; document.getElementById('tg-soil').checked = true;
-    renderSoil(); render();
-    soilLayer.eachLayer((m) => {
-      if (m.soilId !== id) return;
-      map.setView(m.getLatLng(), 12);
-      if (window.innerWidth < 760) openSoilSheet(ctx.soil.find((c) => c.id === id)); else m.openPopup();
-    });
+  function focusPoint(kind, id) {
+    state.layers[kind] = true;
+    syncToggles();
+    renderPoints(); render();
+    const o = PT[kind].list().find((x) => x.id === id);
+    if (!o || o.lat === null) return;
+    map.setView([o.lat, o.lng], 12);
+    if (isMobile()) { openSheet(POPUP[kind](o)); return; }
+    ptLayers[kind].eachLayer((m) => { if (m.ptId === id) m.openPopup(); });
+  }
+  function syncToggles() {
+    document.getElementById('tg-crop').checked = state.layers.crop;
+    Object.keys(PT).forEach((k) => { document.getElementById('tg-' + k).checked = !!state.layers[k]; });
+    document.getElementById('layer-panel').classList.toggle('crop-off', !state.layers.crop);
   }
 
-  return { init, render: () => { render(); renderSoil(); }, closeInfo, invalidate, focusSoil };
+  return { init, render: () => { syncToggles(); render(); renderPoints(); }, closeInfo, invalidate, focusPoint, focusSoil: (id) => focusPoint('soil', id), legendShape };
 })();

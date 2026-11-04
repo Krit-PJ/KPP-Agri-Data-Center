@@ -1,5 +1,5 @@
 /** อ่านข้อมูลจากชีต data / districts, cache, และชีตมุมมองรายพืช */
-const BOOT_CACHE_KEY = 'boot:v2.1';
+const BOOT_CACHE_KEY = 'boot:v2.2';
 const BOOT_CACHE_SECONDS = 600;
 
 /** คืนแถว data เป็น array ตามลำดับ DATA_HEADERS (ตัวเลขแปลงแล้ว) */
@@ -39,7 +39,12 @@ function bootstrap_() {
     districts: readDistricts_(),
     crops: cropList_(rows),
     links: linkList_(false),
-    soil: soilPublic_()
+    soil: soilPublic_(),
+    // ชั้นข้อมูลใหม่ v2.2 — เฉพาะช่องที่อนุญาตให้เผยแพร่ (ไม่มีข้อมูลส่วนบุคคล)
+    farms: dsPublic_('farm'),
+    lc: dsPublic_('lc'),
+    lcnet: dsPublic_('lcnet'),
+    lctype: dsPublic_('lctype')
   };
   cachePutBig_(BOOT_CACHE_KEY, JSON.stringify(out), BOOT_CACHE_SECONDS);
   return out;
