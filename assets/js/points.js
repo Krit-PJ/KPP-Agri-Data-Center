@@ -2,17 +2,21 @@
 window.Points = (function () {
   const D = window.AgriData;
   // สีประจำแต่ละชั้นข้อมูล (ใช้ทั้งจุดบนแผนที่และแถบเมนู)
-  const COLOR = { soilMain: '#eb6834', soilNet: '#2a78d6', farm: '#6250d6', lc: '#0f766e' };
+  const COLOR = { soilMain: '#eb6834', soilNet: '#2a78d6', farm: '#6250d6', lc: '#0f766e', pest: '#b0306a' };
+  // ศจช. ระดับชั้น A/B/C: สีเดียวกัน เข้ม → อ่อน (A = เข้มแข็งที่สุด)
+  const PEST_LEVEL = { A: '#7d1f4b', B: '#b0306a', C: '#dd7aa6' };
   const SOIL_COLOR = { 'หลัก': COLOR.soilMain, 'เครือข่าย': COLOR.soilNet };
   const shape = {
     circle: (sz, fill, dashed) => `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" fill="${fill}" stroke="#fff" stroke-width="2.2"${dashed ? ' stroke-dasharray="3 2"' : ''}/></svg>`,
     diamond: (sz, fill) => `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.2 18.8 10 10 18.8 1.2 10Z" fill="${fill}" stroke="#fff" stroke-width="2"/></svg>`,
+    triangle: (sz, fill) => `<svg width="${sz}" height="${sz}" viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.6 18.9 17.6H1.1Z" fill="${fill}" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></svg>`,
     house: (sz, fill) => `<svg width="${sz}" height="${sz}" viewBox="0 0 22 22" aria-hidden="true"><path d="M11 1.5 21 10h-2.6v10.5H3.6V10H1Z" fill="${fill}" stroke="#fff" stroke-width="1.8" stroke-linejoin="round"/><rect x="8.6" y="13" width="4.8" height="7.5" fill="#fff" opacity=".9"/></svg>`,
   };
   function icon(kind, o, active) {
     let sz, html;
     if (kind === 'soil') { sz = Math.round(Math.max(13, Math.min(26, Math.sqrt(o.members) * 2.4))); html = shape.circle(sz, SOIL_COLOR[o.type] || '#6b7682', !o.verified); }
     else if (kind === 'farm') { sz = 17; html = shape.diamond(sz, COLOR.farm); }
+    else if (kind === 'pest') { sz = 20; html = shape.triangle(sz, PEST_LEVEL[o.level] || COLOR.pest); }
     else { sz = 25; html = shape.house(sz, COLOR.lc); }
     const box = Math.max(sz, 26); // พื้นที่แตะอย่างน้อย 26px
     return L.divIcon({ className: 'pt-ic pt-' + kind + (active ? ' pt-active' : ''), html: `<span class="pt-hit" style="width:${box}px;height:${box}px">${html}</span>`,
@@ -43,5 +47,16 @@ window.Points = (function () {
       ${row('พื้นที่เป้าหมาย', c.target_area ? D.fmt(c.target_area) + ' ไร่' : '')}${row('เกษตรกรเป้าหมาย', c.target_farmers ? D.fmt(c.target_farmers) + ' ราย' : '')}</dl>
       ${hl.length ? `<div class="pop-hl"><b>จุดเด่นของศูนย์</b><ul>${hl.map((h) => `<li>${D.esc(h)}</li>`).join('')}</ul></div>` : ''}</div>`;
   }
-  return { COLOR, SOIL_COLOR, shape, icon, popup: { soil, farm, lc } };
+  function pest(c) {
+    const areas = [c.area_farm && 'แปลงใหญ่', c.area_risk && 'เสี่ยงต่อการระบาด', c.area_gap && 'ผลิตสินค้าคุณภาพ (GAP)', c.area_normal && 'ปกติ/ทั่วไป'].filter(Boolean).join(', ');
+    const list = (v) => String(v || '').split(';').map((x) => x.trim()).filter(Boolean);
+    const bio = list(c.bio), other = list(c.other);
+    return `<div class="soil-pop"><div class="pop-kind">${shape.triangle(12, COLOR.pest)} ศูนย์จัดการศัตรูพืชชุมชน</div><h4>${D.esc(c.name)}</h4>
+      ${c.level ? `<span class="tag pest lv-${D.esc(c.level)}">ระดับ ${D.esc(c.level)}${c.level_year ? ' (ปี ' + D.esc(c.level_year) + ')' : ''}</span>` : ''}
+      <dl>${row('ที่ตั้ง', [c.moo ? 'ม.' + c.moo : '', c.tambon ? 'ต.' + c.tambon : '', 'อ.' + c.district].filter(Boolean).join(' '))}${row('สมาชิก', D.fmt(c.members) + ' ราย')}
+      ${row('จัดตั้งปี', c.year_start)}${row('พืชหลัก', c.crop)}${row('พื้นที่', areas)}${row('สถานะอื่น', other.join(', '))}</dl>
+      ${bio.length ? `<div class="pop-hl"><b>ผลิตชีวภัณฑ์</b><ul>${bio.map((h) => `<li>${D.esc(h)}</li>`).join('')}</ul></div>` : ''}
+      ${c.coord_note && /ตกในอำเภอ|ไม่ถูกต้อง/.test(c.coord_note) ? `<div class="warn">⚠️ ${D.esc(c.coord_note.split('; ').pop())}</div>` : ''}</div>`;
+  }
+  return { COLOR, SOIL_COLOR, PEST_LEVEL, shape, icon, popup: { soil, farm, lc, pest } };
 })();

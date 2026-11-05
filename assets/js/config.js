@@ -15,6 +15,7 @@ window.APP_CONFIG = {
   FALLBACK_SOIL: 'data/soil_centers.json',
   FALLBACK_FARMS: 'data/large_farms.json',
   FALLBACK_LC: 'data/lc_centers.json',
+  FALLBACK_PEST: 'data/pest_centers.json',
   CREDIT: 'พัฒนาโดย ดร. กิตติ โพธิ์จวง กลุ่มอารักขาพืช สำนักงานเกษตรจังหวัดกำแพงเพชร',
   PROVINCE: 'จังหวัดกำแพงเพชร',
   CENTER: [16.35, 99.6],

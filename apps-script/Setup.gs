@@ -32,7 +32,7 @@ function setupSystem() {
 /** ทดสอบหลัง deploy: Run แล้วดู Execution log */
 function selfTest() {
   const b = bootstrap_();
-  const res = ['rows=' + b.rows.length, 'crops=' + b.crops.join('/'), 'districts=' + b.districts.length, 'links=' + b.links.length, 'soil=' + b.soil.length, 'farms=' + b.farms.length, 'lc=' + b.lc.length,
+  const res = ['rows=' + b.rows.length, 'crops=' + b.crops.join('/'), 'districts=' + b.districts.length, 'links=' + b.links.length, 'soil=' + b.soil.length, 'farms=' + b.farms.length, 'pest=' + b.pest.length, 'lc=' + b.lc.length,
     'visits=' + JSON.stringify(visitCounts_())];
   Logger.log(res.join('\n'));
   return res;

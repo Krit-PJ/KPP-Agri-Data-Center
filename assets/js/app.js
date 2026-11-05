@@ -2,8 +2,8 @@
 (async function () {
   const C = window.APP_CONFIG;
   const D = window.AgriData;
-  const VIEWS = ['map', 'dashboard', 'soil', 'farm', 'lc', 'request', 'links'];
-  const HUB = ['soil', 'farm', 'lc']; // หน้า "ศูนย์และกลุ่ม"
+  const VIEWS = ['map', 'dashboard', 'soil', 'pest', 'farm', 'lc', 'request', 'links'];
+  const HUB = ['soil', 'pest', 'farm', 'lc']; // หน้า "ศูนย์และกลุ่ม"
   const state = { crop: null, year: null, years: [], metric: 'planted', openDistrict: null };
 
   // โลโก้
@@ -41,6 +41,7 @@
   Dashboard.init(ctx, state);
   RequestForm.init(ctx);
   SoilView.init(ctx);
+  PestView.init(ctx);
   FarmView.init(ctx);
   LcView.init(ctx);
 
@@ -76,6 +77,7 @@
     if (view === 'dashboard') Dashboard.render();
     if (view === 'links') renderLinks();
     if (view === 'soil') SoilView.render();
+    if (view === 'pest') PestView.render();
     if (view === 'farm') FarmView.render();
     if (view === 'lc') LcView.render();
     if (changed) window.scrollTo(0, 0);

@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#1a7f37" />
-  <meta name="description" content="ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร: แผนที่และแดชบอร์ดเนื้อที่เพาะปลูก ผลผลิต และผลผลิตต่อไร่ ของพืชเศรษฐกิจ 9 ชนิด รายอำเภอ ศูนย์จัดการดินปุ๋ยชุมชน กลุ่มแปลงใหญ่ และ ศพก." />
+  <meta name="description" content="ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร: แผนที่และแดชบอร์ดเนื้อที่เพาะปลูก ผลผลิต และผลผลิตต่อไร่ ของพืชเศรษฐกิจ 9 ชนิด รายอำเภอ ศูนย์จัดการดินปุ๋ยชุมชน ศูนย์จัดการศัตรูพืชชุมชน กลุ่มแปลงใหญ่ และ ศพก." />
   <title>KPP Agri Data Center | ศูนย์ข้อมูลการเกษตรจังหวัดกำแพงเพชร</title>
   <link rel="icon" href="assets/img/logo-doae.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/vendor/leaflet.css" />
-  <link rel="stylesheet" href="assets/css/style.css?v=2.3.0" />
+  <link rel="stylesheet" href="assets/css/style.css?v=2.4.0" />
 </head>
 <body>
   <div id="loading" class="loading"><div class="spinner"></div><p>กำลังโหลดข้อมูล…</p></div>
@@ -78,7 +78,7 @@
   <!-- ================= ศดปช. ================= -->
   <section id="view-soil" class="view page" aria-label="ศูนย์จัดการดินปุ๋ยชุมชน">
     <main class="dash soil-dash">
-      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="pest" class="ht-pest">🐛 ศจช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
       <div class="soil-head card"><div><h2>🧪 ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)</h2><p class="muted" id="soil-src"></p></div></div>
       <div class="kpis soil-kpis" id="soil-kpis"></div>
       <div class="card map-card"><div class="map-card-h"><h3>📍 ที่ตั้ง ศดปช.</h3><span class="muted" id="soil-map-count"></span></div><div class="hub-map" id="soil-map" role="region" aria-label="แผนที่ที่ตั้ง ศดปช."></div></div>
@@ -94,10 +94,28 @@
     <footer class="foot" id="soil-foot"></footer>
   </section>
 
+  <!-- ================= ศจช. ================= -->
+  <section id="view-pest" class="view page" aria-label="ศูนย์จัดการศัตรูพืชชุมชน">
+    <main class="dash soil-dash">
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="pest" class="ht-pest">🐛 ศจช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
+      <div class="soil-head card"><div><h2>🐛 ศูนย์จัดการศัตรูพืชชุมชน (ศจช.)</h2><p class="muted" id="pest-src"></p></div></div>
+      <div class="kpis soil-kpis" id="pest-kpis"></div>
+      <div class="card map-card"><div class="map-card-h"><h3>📍 ที่ตั้ง ศจช.</h3><span class="muted" id="pest-map-count"></span></div><div class="hub-map" id="pest-map" role="region" aria-label="แผนที่ที่ตั้ง ศจช."></div></div>
+      <div class="card chart-card c-purple side-chart"><h3>จำนวนศูนย์รายอำเภอ แยกระดับชั้น</h3><div class="cv"><canvas id="ch-pest-district"></canvas></div></div>
+      <div class="card chart-card c-yellow"><h3>พืชหลักของศูนย์ / การผลิตชีวภัณฑ์ (ศูนย์)</h3><div class="cv"><canvas id="ch-pest-crop"></canvas></div></div>
+      <div class="card chart-card c-pink"><h3>ปีที่จัดตั้ง (จำนวนศูนย์)</h3><div class="cv"><canvas id="ch-pest-year"></canvas></div></div>
+      <div class="card soil-table-card">
+        <div class="soil-filter"><input id="pest-q" placeholder="🔍 ค้นหาชื่อศูนย์ ตำบล พืช ชีวภัณฑ์…" /><select id="pest-d"><option value="">ทุกอำเภอ</option></select>
+          <select id="pest-l"><option value="">ทุกระดับชั้น</option><option>A</option><option>B</option><option>C</option></select></div>
+        <div class="tbl-wrap"><table id="pest-table"></table></div>
+      </div>
+    </main>
+  </section>
+
   <!-- ================= กลุ่มแปลงใหญ่ ================= -->
   <section id="view-farm" class="view page" aria-label="กลุ่มแปลงใหญ่">
     <main class="dash soil-dash">
-      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="pest" class="ht-pest">🐛 ศจช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
       <div class="soil-head card"><div><h2>🌾 กลุ่มแปลงใหญ่</h2><p class="muted" id="farm-src"></p></div></div>
       <div class="kpis soil-kpis" id="farm-kpis"></div>
       <div class="card map-card"><div class="map-card-h"><h3>📍 ที่ตั้งกลุ่มแปลงใหญ่</h3><span class="muted" id="farm-map-count"></span></div><div class="hub-map" id="farm-map" role="region" aria-label="แผนที่ที่ตั้งกลุ่มแปลงใหญ่"></div></div>
@@ -123,7 +141,7 @@
   <!-- ================= ศพก. ================= -->
   <section id="view-lc" class="view page" aria-label="ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร">
     <main class="dash soil-dash">
-      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="pest" class="ht-pest">🐛 ศจช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
       <div class="soil-head card"><div><h2>🏠 ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก.)</h2><p class="muted" id="lc-src"></p></div></div>
       <div class="kpis soil-kpis" id="lc-kpis"></div>
       <div class="card map-card"><div class="map-card-h"><h3>📍 ที่ตั้ง ศพก. หลัก</h3><span class="muted" id="lc-map-count"></span></div><div class="hub-map" id="lc-map" role="region" aria-label="แผนที่ที่ตั้ง ศพก. หลัก"></div></div>
@@ -203,17 +221,17 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="assets/js/config.js?v=2.3.0"></script>
-  <script src="assets/js/api.js?v=2.3.0"></script>
-  <script src="assets/js/icons.js?v=2.3.0"></script>
-  <script src="assets/js/data.js?v=2.3.0"></script>
-  <script src="assets/js/points.js?v=2.3.0"></script>
-  <script src="assets/js/hubmap.js?v=2.3.0"></script>
-  <script src="assets/js/map.js?v=2.3.0"></script>
-  <script src="assets/js/dashboard.js?v=2.3.0"></script>
-  <script src="assets/js/request.js?v=2.3.0"></script>
-  <script src="assets/js/soil.js?v=2.3.0"></script>
-  <script src="assets/js/hub.js?v=2.3.0"></script>
-  <script src="assets/js/app.js?v=2.3.0"></script>
+  <script src="assets/js/config.js?v=2.4.0"></script>
+  <script src="assets/js/api.js?v=2.4.0"></script>
+  <script src="assets/js/icons.js?v=2.4.0"></script>
+  <script src="assets/js/data.js?v=2.4.0"></script>
+  <script src="assets/js/points.js?v=2.4.0"></script>
+  <script src="assets/js/hubmap.js?v=2.4.0"></script>
+  <script src="assets/js/map.js?v=2.4.0"></script>
+  <script src="assets/js/dashboard.js?v=2.4.0"></script>
+  <script src="assets/js/request.js?v=2.4.0"></script>
+  <script src="assets/js/soil.js?v=2.4.0"></script>
+  <script src="assets/js/hub.js?v=2.4.0"></script>
+  <script src="assets/js/app.js?v=2.4.0"></script>
 </body>
 </html>

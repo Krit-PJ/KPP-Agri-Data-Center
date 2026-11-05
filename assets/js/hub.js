@@ -176,4 +176,76 @@
     function render() { lastMobile = isMobile(); kpis(); charts(); table(); }
     return { init, render };
   })();
+  // ---------------- ศจช. ----------------
+  window.PestView = (function () {
+    let ctx, inited = false, lastMobile = null, HM;
+    const draw = makeCharts();
+    const LV = P.PEST_LEVEL;
+    const list = (v) => String(v || '').split(';').map((x) => x.trim()).filter(Boolean);
+    function init(_ctx) {
+      ctx = _ctx;
+      const S = ctx.pest;
+      const ds = [...new Set(S.map((c) => c.district).filter(Boolean))].sort(sortTh);
+      document.getElementById('pest-d').innerHTML = '<option value="">ทุกอำเภอ</option>' + ds.map((d) => `<option>${D.esc(d)}</option>`).join('');
+      ['pest-q', 'pest-d', 'pest-l'].forEach((id) => document.getElementById(id).addEventListener('input', table));
+      HM = HubMap.attach({ el: 'pest-map', ctx, kind: 'pest', count: 'pest-map-count',
+        onSelect: (id) => HubMap.highlightRow('pest-table', 'data-pest-map', id),
+        legend: ['A', 'B', 'C'].map((l) => `<span>${P.shape.triangle(13, LV[l])} ระดับ ${l}</span>`).join(''),
+        countText: (n, l) => `แสดง <b>${n}</b> ศูนย์` + (l.length - n ? ` · <span class="nocoord">ยังไม่มีพิกัด ${l.length - n} ศูนย์</span>` : '') + (l.length < ctx.pest.length ? ` (กรองจาก ${ctx.pest.length})` : '') });
+      document.getElementById('pest-table').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-pest-map]'); if (!b) return;
+        HubMap.highlightRow('pest-table', 'data-pest-map', b.dataset.pestMap); HM.focus(b.dataset.pestMap);
+      });
+      const ly = (S.find((c) => c.level_year) || {}).level_year;
+      document.getElementById('pest-src').textContent = `ที่มา: ทำเนียบศูนย์จัดการศัตรูพืชชุมชน จังหวัดกำแพงเพชร · ${S.length} ศูนย์ ใน ${ds.length} อำเภอ` + (ly ? ` · ระดับชั้นปีงบประมาณ ${ly}` : '');
+      inited = true;
+    }
+    function kpis() {
+      const S = ctx.pest, mem = S.reduce((a, c) => a + c.members, 0);
+      const n = (l) => S.filter((c) => c.level === l).length;
+      const bio = S.filter((c) => list(c.bio).length).length;
+      document.getElementById('pest-kpis').innerHTML = kpiHtml([
+        ['h-purple', 'ศจช. ทั้งหมด (ศูนย์)', D.fmt(S.length), `ใน ${new Set(S.map((c) => c.district_code)).size} อำเภอ`],
+        ['h-yellow', 'สมาชิกรวม (ราย)', D.fmt(mem), `เฉลี่ย ${D.fmt(S.length ? mem / S.length : 0, 1)} ราย/ศูนย์`],
+        ['h-salmon', 'ระดับชั้น A / B / C', `${n('A')} / ${n('B')} / ${n('C')}`, 'A = เข้มแข็ง พร้อมเป็นต้นแบบ'],
+        ['h-blue', 'ผลิตชีวภัณฑ์ (ศูนย์)', D.fmt(bio), `${D.fmt(S.filter((c) => c.area_risk).length)} ศูนย์อยู่ในพื้นที่เสี่ยงระบาด`],
+        ['h-pink', 'อยู่ในพื้นที่แปลงใหญ่', D.fmt(S.filter((c) => c.area_farm).length), `เป็น ศดปช. ด้วย ${S.filter((c) => /ศดปช/.test(c.other)).length} ศูนย์`],
+      ]);
+    }
+    function charts() {
+      const S = ctx.pest;
+      const by = {};
+      S.forEach((c) => { const k = c.district || 'ไม่ระบุ'; by[k] = by[k] || { A: 0, B: 0, C: 0, n: 0 }; if (by[k][c.level] !== undefined) by[k][c.level]++; by[k].n++; });
+      const d = Object.entries(by).sort((a, b) => b[1].n - a[1].n);
+      draw('ch-pest-district', { type: 'bar', data: { labels: d.map((x) => x[0]), datasets: ['A', 'B', 'C'].map((l) => ({ label: 'ระดับ ' + l, data: d.map((x) => x[1][l]), backgroundColor: LV[l], ...BAR })) },
+        options: opts('ศูนย์', { legend: true, stacked: true }) });
+      // พืชหลัก (รวม "ข้าวเจ้า" = ข้าว) และชนิดชีวภัณฑ์ที่ผลิต
+      const crop = Object.entries(countBy(S, (c) => (c.crop || 'ไม่ระบุ').replace(/^ข้าวเจ้า$/, 'ข้าว'))).sort((a, b) => b[1] - a[1]);
+      const bio = {}; S.forEach((c) => list(c.bio).forEach((b) => { bio[b] = (bio[b] || 0) + 1; }));
+      const bl = Object.entries(bio).sort((a, b) => b[1] - a[1]);
+      const labels = crop.map((x) => '🌾 ' + x[0]).concat(bl.map((x) => '🧫 ' + x[0].replace('พร้อมใช้', '')));
+      draw('ch-pest-crop', { type: 'bar', data: { labels, datasets: [{ label: 'ศูนย์', data: crop.map((x) => x[1]).concat(bl.map((x) => x[1])),
+        backgroundColor: crop.map(() => '#1baf7a').concat(bl.map(() => '#b0306a')), ...BAR }] }, options: opts('ศูนย์', { horizontal: true }) });
+      const ys = countBy(S.filter((c) => c.year_start), 'year_start');
+      const yk = Object.keys(ys).map(Number);
+      const yl = yk.length ? Array.from({ length: Math.max(...yk) - Math.min(...yk) + 1 }, (_, i) => Math.min(...yk) + i) : [];
+      draw('ch-pest-year', { type: 'bar', data: { labels: yl, datasets: [{ label: 'ศูนย์ที่จัดตั้ง', data: yl.map((y) => ys[y] || 0), backgroundColor: '#eb6834', ...BAR }] }, options: opts('ศูนย์', { horizontal: false }) });
+    }
+    function table() {
+      const q = document.getElementById('pest-q').value.trim().toLowerCase(), dd = document.getElementById('pest-d').value, ll = document.getElementById('pest-l').value;
+      const rows = ctx.pest.filter((c) => (!dd || c.district === dd) && (!ll || c.level === ll) &&
+        (!q || [c.name, c.tambon, c.district, c.crop, c.bio, c.other].join(' ').toLowerCase().includes(q)))
+        .sort((a, b) => sortTh(a.district, b.district) || String(a.level).localeCompare(String(b.level)));
+      document.getElementById('pest-table').innerHTML = `<thead><tr><th>ชื่อ ศจช.</th><th>อำเภอ</th><th class="hide-m">ตำบล</th><th>ระดับ</th><th>สมาชิก (ราย)</th><th class="hide-m">จัดตั้ง</th><th class="hide-m">พืชหลัก</th><th class="hide-m">ชีวภัณฑ์</th><th></th></tr></thead><tbody>` +
+        (rows.length ? rows.map((c) => `<tr><td>${D.esc(c.name)}</td><td>${D.esc(c.district)}</td><td class="hide-m">${D.esc(c.tambon)}</td>
+          <td><span class="badge-lv lv-${D.esc(c.level)}">${D.esc(c.level || '-')}</span></td><td class="n">${D.fmt(c.members)}</td><td class="hide-m">${D.esc(c.year_start || '')}</td>
+          <td class="hide-m">${D.esc(c.crop)}</td><td class="hide-m small">${D.esc(list(c.bio).map((b) => b.replace('พร้อมใช้', '')).join(', ') || '–')}</td>
+          <td>${c.lat !== null ? `<button class="btn xs" data-pest-map="${D.esc(c.id)}">📍 ดูจุด</button>` : '<span class="nocoord" title="' + D.esc(c.coord_note) + '">ยังไม่มีพิกัด</span>'}</td></tr>`).join('')
+          : '<tr><td colspan="9" class="muted">ไม่พบรายการ</td></tr>') + '</tbody>';
+      HM.show(rows);
+    }
+    window.addEventListener('resize', () => { if (inited && document.getElementById('view-pest').classList.contains('active') && isMobile() !== lastMobile) render(); });
+    function render() { lastMobile = isMobile(); kpis(); charts(); table(); }
+    return { init, render };
+  })();
 })();

@@ -152,6 +152,15 @@ window.DataTable = (function () {
           plan = { mode: 'upsert', rows, html: `<b>ไฟล์พิกัดแปลงใหญ่</b>: ${coords.length} รายการ · จับคู่ได้ ${m.matched} กลุ่ม · จะ<b>ปรับเฉพาะพิกัด</b> ของกลุ่มที่จับคู่ได้` +
             (m.unmatched.length ? `<details><summary>จับคู่ไม่ได้หรือพิกัดไม่ถูกต้อง ${m.unmatched.length} รายการ</summary><ul>${m.unmatched.map((n) => `<li>${esc(n)}</li>`).join('')}</ul></details>` : '') };
         }
+      } else if (T.ds.name === 'pest') {
+        if (!window.__geo) window.__geo = await (await fetch('data/kpp_districts.json')).json();
+        const res = grids.map((g) => PestParser.parse(g, { geo: window.__geo, districts: A().S.districts })).filter((r) => r.kind === 'pest');
+        const rows = res.flatMap((r) => r.rows), probs = res.flatMap((r) => r.problems);
+        // คงรหัสเดิมของศูนย์ที่ชื่อเต็มตรงกัน (ประวัติการแก้ไขไม่ขาดตอน)
+        const old = {}; T.rows.forEach((r) => { old[r.full_name || r.name] = r; });
+        rows.forEach((r) => { const o = old[r.full_name] || old[r.name]; r.id = o ? o.id : ''; if (o && !r.chair) r.chair = o.chair; });
+        plan = { mode: 'replace', rows, html: `<b>ทำเนียบ ศจช.</b>: ${rows.length} ศูนย์ (ระดับชั้นปี ${esc(res[0] ? res[0].levelYear : '-')}) · มีพิกัด ${rows.filter((r) => r.lat !== null).length} ศูนย์ · จะ<b>แทนที่ข้อมูลทั้งชุด</b> โดยคงรหัสเดิมของศูนย์ที่ชื่อตรงกัน` +
+          (probs.length ? `<details open><summary>⚠️ ตรวจพบ ${probs.length} รายการที่ควรตรวจสอบ</summary><ul>${probs.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>` : '') };
       } else {
         const g = grids.map(genericParse).find(Boolean);
         if (g) plan = { mode: 'replace', rows: g.rows, html: `<b>${esc(T.ds.label)}</b>: ${g.rows.length} แถว · คอลัมน์ที่ใช้: ${g.cols.map(esc).join(', ')} · จะ<b>แทนที่ข้อมูลทั้งชุด</b>` };

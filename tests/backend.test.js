@@ -216,15 +216,17 @@ test('v2.2 datasets: seeds, public allowlist, edit/delete/conflict/audit, roles'
   const { g, out } = boot();
   assert.match(out.join('\n'), /กลุ่มแปลงใหญ่ 107 แถว/);
   const b = g.get({ action: 'bootstrap' }).result;
-  assert.strictEqual(b.version, '2.2.0');
+  assert.strictEqual(b.version, '2.4.0');
+  assert.strictEqual(b.pest.length, 36);
+  assert.ok(!/"chair/.test(JSON.stringify(b.pest)));
   assert.deepStrictEqual([b.farms.length, b.lc.length, b.lcnet.length, b.lctype.length], [107, 11, 11, 18]);
-  const pub = JSON.stringify([b.farms, b.lc, b.soil]);
+  const pub = JSON.stringify([b.farms, b.lc, b.soil, b.pest]);
   assert.ok(!/"(manager\w*|chair\w*|farmer\w*|officer\w*|\w*phone)":/.test(pub), 'no PII keys in public payload');
   const sup = login(g, 'krit', 'Dev#pass2026');
   assert.ok(g.post({ method: 'adminSave', token: sup, args: [{ username: '0812345678', name: 'แอดมิน', role: 'admin', password: 'Temp@2026x' }] }).ok);
   const adm = login(g, '0812345678', 'Temp@2026x');
   const schema = g.post({ method: 'dsSchema', token: adm }).result;
-  assert.deepStrictEqual(schema.map((d) => d.name), ['crops', 'soil', 'farm', 'lc', 'lcnet', 'lctype']);
+  assert.deepStrictEqual(schema.map((d) => d.name), ['crops', 'soil', 'farm', 'pest', 'lc', 'lcnet', 'lctype']);
   assert.strictEqual(schema[0].canDelete, false);
   assert.ok(schema.find((d) => d.name === 'farm').fields.find((f) => f.key === 'chair_phone').pii);
   // admin เห็นและแก้ข้อมูลส่วนบุคคลได้

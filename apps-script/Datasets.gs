@@ -71,7 +71,7 @@ function datasets_() {
     ]
   },
   lc: {
-    label: 'ศพก. หลัก', sheet: 'lc_centers', idPrefix: 'L', order: 4, seed: 'LC_SEED',
+    label: 'ศพก. หลัก', sheet: 'lc_centers', idPrefix: 'L', order: 5, seed: 'LC_SEED',
     fields: [
       f_('id', 'id', 'code', 'รหัส'), f_('name', 'name', 'text', 'ชื่อศูนย์', { required: true }),
       f_('district', 'district', 'text', 'อำเภอ', { max: 60 }), f_('district_code', 'district_code', 'code', 'รหัสอำเภอ'),
@@ -85,13 +85,30 @@ function datasets_() {
       f_('officer', 'officer', 'text', 'เจ้าหน้าที่ตำบล', { pii: true }), f_('officer_phone', 'officer_phone', 'phone', 'โทรศัพท์เจ้าหน้าที่', { pii: true })
     ]
   },
+  pest: {
+    label: 'ศูนย์จัดการศัตรูพืชชุมชน (ศจช.)', sheet: 'pest_centers', idPrefix: 'P', order: 4, seed: 'PEST_SEED',
+    note: 'นำเข้าทำเนียบ ศจช. ทั้งไฟล์ได้ที่ปุ่ม "นำเข้าไฟล์" ของตารางนี้ (พิกัด UTM 47N แปลงให้อัตโนมัติ)',
+    fields: [
+      f_('id', 'id', 'code', 'รหัส'), f_('name', 'name', 'text', 'ชื่อ ศจช.', { required: true }), f_('full_name', 'full_name', 'text', 'ชื่อเต็มตามทะเบียน'),
+      f_('year_start', 'year_start', 'year', 'ปีที่จัดตั้ง'), f_('level', 'level', 'select', 'ระดับชั้น', { options: ['A', 'B', 'C'] }),
+      f_('level_year', 'level_year', 'code', 'ระดับชั้นของปีงบประมาณ'), f_('members', 'members', 'int', 'สมาชิก (ราย)'),
+      f_('moo', 'moo', 'text', 'หมู่ที่', { max: 20 }), f_('tambon', 'tambon', 'text', 'ตำบล', { max: 60 }),
+      f_('district', 'district', 'text', 'อำเภอ', { max: 60 }), f_('district_code', 'district_code', 'code', 'รหัสอำเภอ'),
+      f_('lat', 'lat', 'lat', 'ละติจูด'), f_('lng', 'lng', 'lng', 'ลองจิจูด'), f_('utm_x', 'utm_x', 'num', 'UTM X (47N)'), f_('utm_y', 'utm_y', 'num', 'UTM Y (47N)'),
+      f_('coord_note', 'coord_note', 'text', 'หมายเหตุพิกัด'), f_('crop', 'crop', 'text', 'พืชหลัก', { max: 60 }),
+      f_('area_farm', 'area_farm', 'bool', 'อยู่ในพื้นที่แปลงใหญ่'), f_('area_risk', 'area_risk', 'bool', 'พื้นที่เสี่ยงต่อการระบาด'),
+      f_('area_gap', 'area_gap', 'bool', 'พื้นที่ผลิตสินค้าคุณภาพ (GAP)'), f_('area_normal', 'area_normal', 'bool', 'พื้นที่ปกติ/ทั่วไป'),
+      f_('other', 'other', 'long', 'สถานะอื่น (คั่นด้วย ;)'), f_('bio', 'bio', 'long', 'การผลิตชีวภัณฑ์ (คั่นด้วย ;)'),
+      f_('chair', 'chair', 'text', 'ประธานศูนย์', { pii: true }), f_('chair_phone', 'chair_phone', 'phone', 'โทรศัพท์ประธาน', { pii: true })
+    ]
+  },
   lcnet: {
-    label: 'ศพก. เครือข่าย รายอำเภอ', sheet: 'lc_network', keyFields: ['district_code'], order: 5, seed: 'LCNET_SEED',
+    label: 'ศพก. เครือข่าย รายอำเภอ', sheet: 'lc_network', keyFields: ['district_code'], order: 6, seed: 'LCNET_SEED',
     fields: [f_('district_code', 'district_code', 'code', 'รหัสอำเภอ', { required: true }), f_('district', 'district', 'text', 'อำเภอ', { max: 60 }),
       f_('count', 'count', 'int', 'จำนวน (แห่ง)')]
   },
   lctype: {
-    label: 'ศพก. เครือข่าย รายประเภท', sheet: 'lc_types', keyFields: ['type'], order: 6, seed: 'LCTYPE_SEED',
+    label: 'ศพก. เครือข่าย รายประเภท', sheet: 'lc_types', keyFields: ['type'], order: 7, seed: 'LCTYPE_SEED',
     fields: [f_('type', 'type', 'text', 'ประเภท', { required: true, max: 60 }), f_('count', 'count', 'int', 'จำนวน (แห่ง)')]
   }
   };
@@ -210,7 +227,7 @@ function dsSchema_(s) {
   return Object.keys(datasets_()).sort(function (a, b) { return datasets_()[a].order - datasets_()[b].order; }).map(function (k) {
     const d = datasets_()[k];
     return { name: k, label: d.label, note: d.note || '', key: d.keyFields || ['id'], canDelete: s.role === 'super',
-      importable: ['farm', 'lc', 'lcnet', 'lctype'].indexOf(k) >= 0,
+      importable: ['farm', 'pest', 'lc', 'lcnet', 'lctype'].indexOf(k) >= 0,
       fields: d.fields.map(function (f) { return { key: f.key, label: f.label, type: f.type, pii: f.pii, public: f.public, required: f.required, options: f.options }; }) };
   });
 }
@@ -288,7 +305,7 @@ function dsDelete_(a, s) {
 function dsImport_(a, s) {
   a = a || {};
   const name = String(a.dataset || ''), d = dsDef_(name);
-  if (['farm', 'lc', 'lcnet', 'lctype'].indexOf(name) < 0) throw new Error('ชุดข้อมูลนี้ให้นำเข้าที่แท็บเดิม');
+  if (['farm', 'pest', 'lc', 'lcnet', 'lctype'].indexOf(name) < 0) throw new Error('ชุดข้อมูลนี้ให้นำเข้าที่แท็บเดิม');
   const rows = Array.isArray(a.rows) ? a.rows : [];
   const mode = a.mode === 'upsert' ? 'upsert' : 'replace';
   if (!rows.length) throw new Error('ไม่มีรายการ');
@@ -345,6 +362,7 @@ function dsImport_(a, s) {
 function dsSeed_(name) {
   switch (name) {
     case 'farm': return typeof FARM_SEED === 'undefined' ? null : FARM_SEED;
+    case 'pest': return typeof PEST_SEED === 'undefined' ? null : PEST_SEED;
     case 'lc': return typeof LC_SEED === 'undefined' ? null : LC_SEED;
     case 'lcnet': return typeof LCNET_SEED === 'undefined' ? null : LCNET_SEED;
     case 'lctype': return typeof LCTYPE_SEED === 'undefined' ? null : LCTYPE_SEED;
@@ -355,7 +373,7 @@ function dsSeed_(name) {
 /** สร้างชีตของชุดข้อมูลใหม่ และใส่ข้อมูลตั้งต้นเมื่อชีตยังว่าง */
 function ensureDatasets_() {
   const out = [];
-  ['farm', 'lc', 'lcnet', 'lctype'].forEach(function (name) {
+  ['farm', 'pest', 'lc', 'lcnet', 'lctype'].forEach(function (name) {
     const d = datasets_()[name];
     const heads = dsHeaders_(d);
     const sh = ensureSheet_(d.sheet, heads);

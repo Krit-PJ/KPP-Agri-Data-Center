@@ -435,3 +435,11 @@ tr.row-on td { background: #fff4c2 !important; transition: background .3s; }
 @media (max-width: 760px) { .soil-dash .chart-card:not(.side-chart) { grid-column: span 12; } }
 .soil-dash .map-card { scroll-margin-top: calc(var(--hdr) + 70px); }
 .btn.xs { white-space: nowrap; }
+/* v2.4 ศจช. */
+.hub-tabs .ht-pest { --c: #8f2557; --t: #fbe6ef; }
+.soil-pop .tag.pest { background: #b0306a; } .soil-pop .tag.pest.lv-A { background: #7d1f4b; } .soil-pop .tag.pest.lv-C { background: #b85a85; }
+.badge-lv { display: inline-block; min-width: 26px; text-align: center; border-radius: 999px; padding: 1px 8px; font-size: 12px; font-weight: 700; color: #fff; background: #b0306a; }
+.badge-lv.lv-A { background: #7d1f4b; } .badge-lv.lv-C { background: #f6d5e3; color: #7d1f4b; }
+#pest-table td { white-space: normal; text-align: left; } #pest-table td.n { text-align: right; } #pest-table th { text-align: left; }
+#pest-table td.small { font-size: 12.5px; color: var(--ink-2); }
+@media (max-width: 760px) { #pest-table .hide-m { display: none; } .hub-tabs button { flex: 1 0 auto; padding: 8px 10px; } }
