@@ -381,3 +381,57 @@ body[data-view="map"] .sitefoot { display: none; }
 }
 .tbl-h { padding: 12px 16px 0; }
 #view-lc .tbl-wrap { max-height: none; }
+
+/* ===== v2.3: ป้ายอำเภอแสดงค่า · แผนที่ในหน้าศูนย์และกลุ่ม · สีแถบเมนู ===== */
+.dlabel-ic { background: none; border: 0; }
+.dlabel2 { display: inline-flex; flex-direction: column; align-items: center; transform: translate(-50%, -50%); background: rgba(255,255,255,.95); border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.14); padding: 2px 9px 3px; line-height: 1.2; white-space: nowrap; cursor: pointer; border: 1.5px solid transparent; transition: transform .12s, box-shadow .12s; }
+.dlabel2 b { font-size: 12px; font-weight: 600; color: var(--ink); }
+.dlabel2 i { font-style: normal; font-size: 12px; font-weight: 700; color: var(--green-d); font-variant-numeric: tabular-nums; }
+.dlabel2.nil i { color: var(--muted); font-weight: 500; }
+.dlabel2:hover { box-shadow: 0 3px 12px rgba(0,0,0,.22); border-color: var(--green); }
+.dlabel2.sel { background: var(--green-d); border-color: var(--green-d); }
+.dlabel2.sel b, .dlabel2.sel i { color: #fff; }
+.leaflet-marker-icon.dlabel-ic:focus-visible .dlabel2 { outline: 2px solid var(--green); outline-offset: 2px; }
+.legend .lg-hint { font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 5px; }
+.kpi-strip .k { border: 2px solid transparent; font: inherit; text-align: left; cursor: pointer; color: inherit; }
+.kpi-strip .k:hover { border-color: var(--green-l); }
+.kpi-strip .k.on { border-color: var(--green); }
+@media (max-width: 760px) {
+  .dlabel2 { padding: 1px 6px 2px; border-radius: 8px; }
+  .dlabel2 b { font-size: 10.5px; } .dlabel2 i { font-size: 10.5px; }
+  .legend .lg-hint { display: none; }
+}
+/* แผนที่ในหน้าศูนย์และกลุ่ม: แผนที่ซ้าย 7 คอลัมน์ + กราฟรายอำเภอขวา 5 คอลัมน์ */
+.soil-dash .map-card { grid-column: span 7; display: flex; flex-direction: column; }
+.hub-map { border-radius: 0 0 var(--r, 14px) var(--r, 14px); }
+.soil-dash .side-chart { grid-column: span 5; display: flex; flex-direction: column; }
+.soil-dash .side-chart .cv { flex: 1; height: auto; min-height: 300px; }
+.map-card-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 10px 14px 8px; border-bottom: 1px solid var(--line); }
+.map-card-h h3 { margin: 0; font-size: 14px; }
+.map-card-h span { font-size: 12.5px; }
+.hub-map { height: 460px; flex: 1 0 auto; background: #eef1f4; }
+.hub-legend { background: rgba(255,255,255,.95); border-radius: 10px; box-shadow: var(--shadow); padding: 6px 10px; display: flex; flex-direction: column; gap: 3px; font: 12px 'Prompt', sans-serif; color: var(--ink-2); }
+.hub-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.hub-legend .ramp i { display: inline-block; width: 26px; height: 10px; border-radius: 3px; border: 1px solid #c9d2d0; }
+.hub-reset { width: 34px; height: 34px; border: 0; border-radius: 8px; background: #fff; box-shadow: 0 1px 5px rgba(0,0,0,.25); font-size: 18px; cursor: pointer; }
+.dlabel.sm { font-size: 10.5px; padding: 1px 7px; opacity: .8; box-shadow: none; }
+.pt-active .pt-hit svg { transform: scale(1.35); filter: drop-shadow(0 0 0 #fff) drop-shadow(0 0 4px rgba(0,0,0,.6)); }
+tr.row-on td { background: #fff4c2 !important; transition: background .3s; }
+@media (max-width: 1100px) { .soil-dash .map-card, .soil-dash .side-chart { grid-column: span 12; } .soil-dash .side-chart .cv { height: 320px; flex: none; } }
+@media (max-width: 760px) { .hub-map { height: 340px; } .hub-legend { font-size: 10.5px; padding: 4px 7px; } .soil-dash .side-chart .cv { height: 440px; } }
+/* แถบเมนูศูนย์และกลุ่ม: สีประจำแต่ละชั้นข้อมูล (ตรงกับสีจุดบนแผนที่) */
+.hub-tabs button { border: 1.5px solid transparent; font-weight: 600; transition: background .15s, color .15s; }
+.hub-tabs .ht-soil { --c: #a8431a; --t: #fdebe3; }
+.hub-tabs .ht-farm { --c: #5040c0; --t: #ece9fb; }
+.hub-tabs .ht-lc { --c: #0b6158; --t: #dff2ef; }
+.hub-tabs button[class*="ht-"] { background: var(--t); color: var(--c); border-color: color-mix(in srgb, var(--c) 25%, transparent); }
+.hub-tabs button[class*="ht-"]:hover { border-color: var(--c); }
+.hub-tabs button[class*="ht-"].on { background: var(--c); color: #fff; border-color: var(--c); box-shadow: 0 3px 10px color-mix(in srgb, var(--c) 35%, transparent); }
+.hub-tabs button[class*="ht-"]:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+@media (max-width: 760px) { .hub-tabs { position: sticky; top: var(--hdr); z-index: 900; } }
+.soil-dash .chart-card:not(.side-chart) { grid-column: span 6; }
+.soil-dash .lc-type-card { grid-column: span 12; }
+@media (max-width: 760px) { .soil-dash .chart-card:not(.side-chart) { grid-column: span 12; } }
+.soil-dash .map-card { scroll-margin-top: calc(var(--hdr) + 70px); }
+.btn.xs { white-space: nowrap; }

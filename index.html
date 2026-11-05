@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="assets/vendor/leaflet.css" />
-  <link rel="stylesheet" href="assets/css/style.css?v=2.2.0" />
+  <link rel="stylesheet" href="assets/css/style.css?v=2.3.0" />
 </head>
 <body>
   <div id="loading" class="loading"><div class="spinner"></div><p>กำลังโหลดข้อมูล…</p></div>
@@ -45,15 +45,9 @@
 
     <aside class="panel sheet" id="layer-panel" aria-label="ตัวเลือกแผนที่">
       <div class="grab"></div>
-      <div class="panel-head"><b>ตัวเลือกแผนที่</b><button class="x" id="close-panel" aria-label="ปิด">✕</button></div>
-      <div class="panel-sec"><div class="sec-label">ชั้นข้อมูล <small>(เปิดได้หลายชั้นพร้อมกัน)</small></div>
-        <label class="layer-toggle"><input type="checkbox" id="tg-crop" /> <span class="lg-ramp"></span> สถิติพืชเศรษฐกิจที่สำคัญ <small>(สีรายอำเภอ)</small></label>
-        <label class="layer-toggle"><input type="checkbox" id="tg-soil" /> <span class="lg-shape" id="lgs-soil"></span> ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.) <small id="soil-count"></small></label>
-        <label class="layer-toggle"><input type="checkbox" id="tg-farm" /> <span class="lg-shape" id="lgs-farm"></span> กลุ่มแปลงใหญ่ <small id="farm-count"></small></label>
-        <label class="layer-toggle"><input type="checkbox" id="tg-lc" /> <span class="lg-shape" id="lgs-lc"></span> ศพก. หลัก <small id="lc-count"></small></label>
-      </div>
-      <div class="panel-sec crop-sec"><div class="sec-label">ปีเพาะปลูก</div><div class="year-grid" id="map-years"></div></div>
-      <div class="panel-sec crop-sec"><div class="sec-label">ตัวชี้วัด (สีบนแผนที่)</div><div class="metric-list" id="map-metrics"></div></div>
+      <div class="panel-head"><b>ชั้นข้อมูล · สถิติพืชเศรษฐกิจที่สำคัญ</b><button class="x" id="close-panel" aria-label="ปิด">✕</button></div>
+      <div class="panel-sec"><div class="sec-label">ปีเพาะปลูก</div><div class="year-grid" id="map-years"></div></div>
+      <div class="panel-sec"><div class="sec-label">ตัวชี้วัด (สีบนแผนที่)</div><div class="metric-list" id="map-metrics"></div></div>
       <div class="panel-sec"><div class="sec-label">แผนที่พื้นหลัง</div><div class="chips" id="basemaps"></div></div>
       <div class="src-badge" id="src-badge"></div>
       <div class="panel-counter" data-counter hidden></div>
@@ -84,11 +78,11 @@
   <!-- ================= ศดปช. ================= -->
   <section id="view-soil" class="view page" aria-label="ศูนย์จัดการดินปุ๋ยชุมชน">
     <main class="dash soil-dash">
-      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil">🧪 ศดปช.</button><button data-go="farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc">🏠 ศพก.</button></nav>
-      <div class="soil-head card"><div><h2>🧪 ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)</h2><p class="muted" id="soil-src"></p></div>
-        <button class="btn primary" id="soil-to-map">🗺️ ดูบนแผนที่</button></div>
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
+      <div class="soil-head card"><div><h2>🧪 ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)</h2><p class="muted" id="soil-src"></p></div></div>
       <div class="kpis soil-kpis" id="soil-kpis"></div>
-      <div class="card chart-card c-purple"><h3>จำนวนศูนย์รายอำเภอ (หลัก / เครือข่าย)</h3><div class="cv"><canvas id="ch-soil-district"></canvas></div></div>
+      <div class="card map-card"><div class="map-card-h"><h3>📍 ที่ตั้ง ศดปช.</h3><span class="muted" id="soil-map-count"></span></div><div class="hub-map" id="soil-map" role="region" aria-label="แผนที่ที่ตั้ง ศดปช."></div></div>
+      <div class="card chart-card c-purple side-chart"><h3>จำนวนศูนย์รายอำเภอ (หลัก / เครือข่าย)</h3><div class="cv"><canvas id="ch-soil-district"></canvas></div></div>
       <div class="card chart-card c-yellow"><h3>จำนวนสมาชิกรายอำเภอ (ราย)</h3><div class="cv"><canvas id="ch-soil-members"></canvas></div></div>
       <div class="card chart-card c-pink"><h3>ปีที่เริ่มดำเนินการ (จำนวนศูนย์)</h3><div class="cv"><canvas id="ch-soil-year"></canvas></div></div>
       <div class="card soil-table-card">
@@ -103,11 +97,11 @@
   <!-- ================= กลุ่มแปลงใหญ่ ================= -->
   <section id="view-farm" class="view page" aria-label="กลุ่มแปลงใหญ่">
     <main class="dash soil-dash">
-      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil">🧪 ศดปช.</button><button data-go="farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc">🏠 ศพก.</button></nav>
-      <div class="soil-head card"><div><h2>🌾 กลุ่มแปลงใหญ่</h2><p class="muted" id="farm-src"></p></div>
-        <button class="btn primary" id="farm-to-map">🗺️ ดูบนแผนที่</button></div>
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
+      <div class="soil-head card"><div><h2>🌾 กลุ่มแปลงใหญ่</h2><p class="muted" id="farm-src"></p></div></div>
       <div class="kpis soil-kpis" id="farm-kpis"></div>
-      <div class="card chart-card c-purple"><h3>จำนวนกลุ่มรายอำเภอ</h3><div class="cv"><canvas id="ch-farm-district"></canvas></div></div>
+      <div class="card map-card"><div class="map-card-h"><h3>📍 ที่ตั้งกลุ่มแปลงใหญ่</h3><span class="muted" id="farm-map-count"></span></div><div class="hub-map" id="farm-map" role="region" aria-label="แผนที่ที่ตั้งกลุ่มแปลงใหญ่"></div></div>
+      <div class="card chart-card c-purple side-chart"><h3>จำนวนกลุ่มรายอำเภอ</h3><div class="cv"><canvas id="ch-farm-district"></canvas></div></div>
       <div class="card chart-card c-yellow"><h3>จำนวนกลุ่มรายสินค้าหลัก</h3><div class="cv"><canvas id="ch-farm-commodity"></canvas></div></div>
       <div class="card chart-card c-pink"><h3>ปีที่เริ่มเป็นแปลงใหญ่ (จำนวนกลุ่ม)</h3><div class="cv"><canvas id="ch-farm-year"></canvas></div></div>
       <div class="card cy-card">
@@ -129,11 +123,11 @@
   <!-- ================= ศพก. ================= -->
   <section id="view-lc" class="view page" aria-label="ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร">
     <main class="dash soil-dash">
-      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil">🧪 ศดปช.</button><button data-go="farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc">🏠 ศพก.</button></nav>
-      <div class="soil-head card"><div><h2>🏠 ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก.)</h2><p class="muted" id="lc-src"></p></div>
-        <button class="btn primary" id="lc-to-map">🗺️ ดูบนแผนที่</button></div>
+      <nav class="hub-tabs" aria-label="ศูนย์และกลุ่ม"><button data-go="soil" class="ht-soil">🧪 ศดปช.</button><button data-go="farm" class="ht-farm">🌾 กลุ่มแปลงใหญ่</button><button data-go="lc" class="ht-lc">🏠 ศพก.</button></nav>
+      <div class="soil-head card"><div><h2>🏠 ศูนย์เรียนรู้การเพิ่มประสิทธิภาพการผลิตสินค้าเกษตร (ศพก.)</h2><p class="muted" id="lc-src"></p></div></div>
       <div class="kpis soil-kpis" id="lc-kpis"></div>
-      <div class="card chart-card c-purple"><h3>ศพก. เครือข่ายรายอำเภอ (แห่ง)</h3><div class="cv"><canvas id="ch-lc-district"></canvas></div></div>
+      <div class="card map-card"><div class="map-card-h"><h3>📍 ที่ตั้ง ศพก. หลัก</h3><span class="muted" id="lc-map-count"></span></div><div class="hub-map" id="lc-map" role="region" aria-label="แผนที่ที่ตั้ง ศพก. หลัก"></div></div>
+      <div class="card chart-card c-purple side-chart"><h3>ศพก. เครือข่ายรายอำเภอ (แห่ง)</h3><div class="cv"><canvas id="ch-lc-district"></canvas></div></div>
       <div class="card chart-card c-yellow lc-type-card"><h3>ศพก. เครือข่ายรายประเภท (แห่ง)</h3><div class="cv tall"><canvas id="ch-lc-type"></canvas></div></div>
       <div class="card soil-table-card"><h3 class="tbl-h">ศพก. หลัก 11 แห่ง (อำเภอละ 1 ศูนย์)</h3>
         <div class="tbl-wrap"><table id="lc-table"></table></div>
@@ -209,15 +203,17 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="assets/js/config.js?v=2.2.0"></script>
-  <script src="assets/js/api.js?v=2.2.0"></script>
-  <script src="assets/js/icons.js?v=2.2.0"></script>
-  <script src="assets/js/data.js?v=2.2.0"></script>
-  <script src="assets/js/map.js?v=2.2.0"></script>
-  <script src="assets/js/dashboard.js?v=2.2.0"></script>
-  <script src="assets/js/request.js?v=2.2.0"></script>
-  <script src="assets/js/soil.js?v=2.2.0"></script>
-  <script src="assets/js/hub.js?v=2.2.0"></script>
-  <script src="assets/js/app.js?v=2.2.0"></script>
+  <script src="assets/js/config.js?v=2.3.0"></script>
+  <script src="assets/js/api.js?v=2.3.0"></script>
+  <script src="assets/js/icons.js?v=2.3.0"></script>
+  <script src="assets/js/data.js?v=2.3.0"></script>
+  <script src="assets/js/points.js?v=2.3.0"></script>
+  <script src="assets/js/hubmap.js?v=2.3.0"></script>
+  <script src="assets/js/map.js?v=2.3.0"></script>
+  <script src="assets/js/dashboard.js?v=2.3.0"></script>
+  <script src="assets/js/request.js?v=2.3.0"></script>
+  <script src="assets/js/soil.js?v=2.3.0"></script>
+  <script src="assets/js/hub.js?v=2.3.0"></script>
+  <script src="assets/js/app.js?v=2.3.0"></script>
 </body>
 </html>

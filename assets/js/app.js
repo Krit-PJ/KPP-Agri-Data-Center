@@ -4,8 +4,7 @@
   const D = window.AgriData;
   const VIEWS = ['map', 'dashboard', 'soil', 'farm', 'lc', 'request', 'links'];
   const HUB = ['soil', 'farm', 'lc']; // หน้า "ศูนย์และกลุ่ม"
-  const state = { crop: null, year: null, years: [], metric: 'planted', openDistrict: null,
-    layers: { crop: true, soil: false, farm: false, lc: false } };
+  const state = { crop: null, year: null, years: [], metric: 'planted', openDistrict: null };
 
   // โลโก้
   const setLogo = (id, src) => { const el = document.getElementById(id); el.src = src; el.onerror = () => el.classList.add('err'); };
@@ -34,8 +33,7 @@
     if (ys.length) state.years = ys;
     else if (!state.years.length) state.years = [latest - 1, latest];
     if (q.get('metric') && D.METRICS[q.get('metric')]) state.metric = q.get('metric');
-    if (q.has('layers')) { const ls = q.get('layers').split(','); Object.keys(state.layers).forEach((k) => { state.layers[k] = ls.includes(k); }); }
-    else if (q.has('soil')) state.layers.soil = q.get('soil') === '1'; // ลิงก์รูปแบบเดิม v2.1
+    // ลิงก์รูปแบบเดิม (soil=1 / layers=…) ยังเปิดได้ แต่จุดที่ตั้งย้ายไปอยู่หน้า "ศูนย์และกลุ่ม" แล้ว
   }
   applyQuery(parseHash().q);
 
@@ -61,7 +59,7 @@
     const q = new URLSearchParams();
     if (view === 'map' || view === 'dashboard') {
       q.set('crop', state.crop);
-      if (view === 'map') { q.set('year', state.year); q.set('metric', state.metric); const ls = Object.keys(state.layers).filter((k) => state.layers[k]); if (ls.join() !== 'crop') q.set('layers', ls.join(',') || 'none'); } else q.set('years', [...state.years].sort().join(','));
+      if (view === 'map') { q.set('year', state.year); q.set('metric', state.metric); } else q.set('years', [...state.years].sort().join(','));
     }
     const h = '#' + view + (q.toString() ? '?' + q.toString() : '');
     if (location.hash !== h) history.replaceState(null, '', location.pathname + location.search + h);
@@ -146,5 +144,11 @@
   document.getElementById('loading').classList.add('hide');
   show(parseHash().view);
   countVisit();
-  window.addEventListener('resize', () => { if (current === 'map') SmartMap.invalidate(); });
+  let wasMobile = window.innerWidth < 760;
+  window.addEventListener('resize', () => {
+    if (current !== 'map') return;
+    SmartMap.invalidate();
+    const m = window.innerWidth < 760;
+    if (m !== wasMobile) { wasMobile = m; SmartMap.render(); } // ตัวเลขเต็ม ↔ ตัวเลขย่อ
+  });
 })();

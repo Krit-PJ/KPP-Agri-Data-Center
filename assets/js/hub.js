@@ -20,17 +20,13 @@
         tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${D.fmt(horizontal ? c.parsed.x : c.parsed.y, unit === '%' ? 1 : 0)} ${unit}` } } },
       scales: horizontal ? { y: cat, x: val } : { x: cat, y: val } };
   }
-  function goMap(kind, id) {
-    App.state.layers[kind] = true;
-    App.go('map');
-    if (id) setTimeout(() => SmartMap.focusPoint(kind, id), 150);
-  }
+  const P = window.Points;
 
   // ---------------- กลุ่มแปลงใหญ่ ----------------
   window.FarmView = (function () {
-    let ctx, inited = false, lastMobile = null;
+    let ctx, inited = false, lastMobile = null, HM;
     const draw = makeCharts();
-    const COLOR = '#6250d6';
+    const COLOR = P.COLOR.farm;
     const pct = (a, b) => (a && b ? (b - a) / a * 100 : null);
 
     function init(_ctx) {
@@ -41,8 +37,14 @@
       document.getElementById('farm-d').innerHTML = '<option value="">ทุกอำเภอ</option>' + ds.map((d) => `<option>${D.esc(d)}</option>`).join('');
       document.getElementById('farm-c').innerHTML = '<option value="">ทุกสินค้า</option>' + cs.map((d) => `<option>${D.esc(d)}</option>`).join('');
       ['farm-q', 'farm-d', 'farm-c', 'farm-p'].forEach((id) => document.getElementById(id).addEventListener('input', table));
-      document.getElementById('farm-table').addEventListener('click', (e) => { const b = e.target.closest('[data-farm-map]'); if (b) goMap('farm', b.dataset.farmMap); });
-      document.getElementById('farm-to-map').onclick = () => goMap('farm');
+      HM = HubMap.attach({ el: 'farm-map', ctx, kind: 'farm', count: 'farm-map-count',
+        onSelect: (id) => HubMap.highlightRow('farm-table', 'data-farm-map', id),
+        legend: `<span>${P.shape.diamond(12, P.COLOR.farm)} กลุ่มแปลงใหญ่</span>`,
+        countText: (n, list) => `แสดง <b>${n}</b> กลุ่ม` + (list.length - n ? ` · <span class="nocoord">ยังไม่มีพิกัด ${list.length - n} กลุ่ม</span>` : '') + (list.length < ctx.farms.length ? ` (กรองจาก ${ctx.farms.length})` : '') });
+      document.getElementById('farm-table').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-farm-map]'); if (!b) return;
+        HubMap.highlightRow('farm-table', 'data-farm-map', b.dataset.farmMap); HM.focus(b.dataset.farmMap);
+      });
       const cy = document.getElementById('farm-cy');
       cy.checked = false; // ค่าเริ่มต้น: ไม่แสดง
       cy.addEventListener('change', () => { document.getElementById('farm-cy-body').hidden = !cy.checked; if (cy.checked) costYield(); table(); });
@@ -113,8 +115,9 @@
         (rows.length ? rows.map((f) => `<tr><td>${D.esc(f.name)}</td><td>${D.esc(f.district)}</td><td>${D.esc(f.commodity)}</td>
           <td class="hide-m">${D.esc(f.year_start || '')}</td><td class="n">${D.fmt(f.members)}</td><td class="n hide-m">${D.fmt(f.plot_area, 2)}</td>
           ${cy ? `<td class="n hide-m">${chg(f.cost_before, f.cost_after)}</td><td class="n hide-m">${chg(f.yield_before, f.yield_after)}</td>` : ''}
-          <td>${f.lat !== null ? `<button class="btn xs" data-farm-map="${D.esc(f.id)}">📍 แผนที่</button>` : '<span class="nocoord">ยังไม่มีพิกัด</span>'}</td></tr>`).join('')
+          <td>${f.lat !== null ? `<button class="btn xs" data-farm-map="${D.esc(f.id)}">📍 ดูจุด</button>` : '<span class="nocoord">ยังไม่มีพิกัด</span>'}</td></tr>`).join('')
           : `<tr><td colspan="${cy ? 9 : 7}" class="muted">ไม่พบรายการ</td></tr>`) + '</tbody>';
+      HM.show(rows);
     }
 
     window.addEventListener('resize', () => { if (inited && document.getElementById('view-farm').classList.contains('active') && isMobile() !== lastMobile) render(); });
@@ -124,12 +127,20 @@
 
   // ---------------- ศพก. ----------------
   window.LcView = (function () {
-    let ctx, inited = false, lastMobile = null;
+    let ctx, inited = false, lastMobile = null, HM;
     const draw = makeCharts();
     function init(_ctx) {
       ctx = _ctx;
-      document.getElementById('lc-table').addEventListener('click', (e) => { const b = e.target.closest('[data-lc-map]'); if (b) goMap('lc', b.dataset.lcMap); });
-      document.getElementById('lc-to-map').onclick = () => goMap('lc');
+      const shade = {}; ctx.lcnet.forEach((x) => { shade[x.district_code] = x.count; });
+      const mx = Math.max(...Object.values(shade), 1);
+      HM = HubMap.attach({ el: 'lc-map', ctx, kind: 'lc', shade, count: 'lc-map-count',
+        onSelect: (id) => HubMap.highlightRow('lc-table', 'data-lc-map', id),
+        legend: `<span>${P.shape.house(14, P.COLOR.lc)} ศพก. หลัก</span><span class="ramp"><i style="background:linear-gradient(90deg,rgba(15,118,110,.08),rgba(15,118,110,.58))"></i> เครือข่าย 0–${mx} แห่ง/อำเภอ</span>`,
+        countText: (n) => `ศพก. หลัก <b>${n}</b> แห่ง · สีพื้นอำเภอ = จำนวน ศพก. เครือข่าย` });
+      document.getElementById('lc-table').addEventListener('click', (e) => {
+        const b = e.target.closest('[data-lc-map]'); if (!b) return;
+        HubMap.highlightRow('lc-table', 'data-lc-map', b.dataset.lcMap); HM.focus(b.dataset.lcMap);
+      });
       document.getElementById('lc-src').textContent = 'ศพก. หลัก อำเภอละ 1 ศูนย์ และ ศพก. เครือข่าย (ศดปช. ศชข. แปลงใหญ่ ปราชญ์ชาวบ้าน และอื่น ๆ) · สำนักงานเกษตรจังหวัดกำแพงเพชร';
       inited = true;
     }
@@ -158,7 +169,8 @@
         rows.map((c) => `<tr><td>${D.esc(c.district)}</td><td class="hide-m">ม.${D.esc(c.moo)} ต.${D.esc(c.tambon)}</td><td>${D.esc(c.commodity)}</td>
           <td class="hide-m small">${D.esc(String(c.highlight || '').split(';').map((x) => x.trim()).filter(Boolean).join(' · '))}</td>
           <td class="n">${D.fmt(net[c.district_code] ?? c.network)}</td>
-          <td>${c.lat !== null ? `<button class="btn xs" data-lc-map="${D.esc(c.id)}">📍 แผนที่</button>` : '<span class="nocoord">ยังไม่มีพิกัด</span>'}</td></tr>`).join('') + '</tbody>';
+          <td>${c.lat !== null ? `<button class="btn xs" data-lc-map="${D.esc(c.id)}">📍 ดูจุด</button>` : '<span class="nocoord">ยังไม่มีพิกัด</span>'}</td></tr>`).join('') + '</tbody>';
+      HM.show(rows);
     }
     window.addEventListener('resize', () => { if (inited && document.getElementById('view-lc').classList.contains('active') && isMobile() !== lastMobile) render(); });
     function render() { lastMobile = isMobile(); kpis(); charts(); table(); }

@@ -2,7 +2,7 @@
 window.SoilView = (function () {
   const D = window.AgriData;
   const COLOR = { 'หลัก': '#eb6834', 'เครือข่าย': '#2a78d6' };
-  let ctx, charts = {}, inited = false;
+  let ctx, charts = {}, inited = false, HM;
   const isMobile = () => window.innerWidth < 760;
 
   function init(_ctx) {
@@ -10,11 +10,16 @@ window.SoilView = (function () {
     const ds = [...new Set(ctx.soil.map((c) => c.district).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'th'));
     document.getElementById('soil-d').innerHTML = '<option value="">ทุกอำเภอ</option>' + ds.map((d) => `<option>${D.esc(d)}</option>`).join('');
     ['soil-q', 'soil-d', 'soil-t'].forEach((id) => document.getElementById(id).addEventListener('input', table));
+    const P = window.Points;
+    HM = HubMap.attach({ el: 'soil-map', ctx, kind: 'soil', count: 'soil-map-count',
+      onSelect: (id) => HubMap.highlightRow('soil-table', 'data-soil-map', id),
+      legend: `<span>${P.shape.circle(12, P.COLOR.soilMain)} ศูนย์หลัก</span><span>${P.shape.circle(12, P.COLOR.soilNet)} ศูนย์เครือข่าย</span><span>${P.shape.circle(12, '#9aa3ad', true)} พิกัดรอตรวจ</span>`,
+      countText: (n, list) => `แสดง <b>${n}</b> ศูนย์` + (list.length < ctx.soil.length ? ` (กรองจาก ${ctx.soil.length})` : '') + ' · ขนาดจุดตามจำนวนสมาชิก' });
     document.getElementById('soil-table').addEventListener('click', (e) => {
       const b = e.target.closest('[data-soil-map]'); if (!b) return;
-      App.go('map'); setTimeout(() => SmartMap.focusSoil(b.dataset.soilMap), 120);
+      HubMap.highlightRow('soil-table', 'data-soil-map', b.dataset.soilMap);
+      HM.focus(b.dataset.soilMap);
     });
-    document.getElementById('soil-to-map').onclick = () => { App.state.layers.soil = true; App.go('map'); };
     document.getElementById('soil-src').textContent = 'ที่มา: ทำเนียบ ศดปช. ปี 2569 สำนักงานเกษตรจังหวัดกำแพงเพชร · ' + ctx.soil.length + ' ศูนย์ ใน ' + ds.length + ' อำเภอ';
     inited = true;
   }
@@ -74,8 +79,9 @@ window.SoilView = (function () {
       (rows.length ? rows.map((c) => `<tr><td>${D.esc(c.name)}${c.verified ? '' : ' <span class="chk-flag" title="' + D.esc(c.note) + '">⚠️ พิกัดรอตรวจ</span>'}</td><td>${D.esc(c.district)}</td>
         <td class="hide-m">${D.esc(c.location)}</td><td><span class="badge-type ${c.type === 'หลัก' ? 'main' : 'net'}">${D.esc(c.type || '-')}</span></td>
         <td class="n">${D.fmt(c.members)}</td><td class="hide-m">${D.esc(c.year_start || '')}</td><td class="hide-m">${D.esc(c.crops || '-')}</td>
-        <td>${c.lat !== null ? `<button class="btn xs" data-soil-map="${D.esc(c.id)}">📍 แผนที่</button>` : ''}</td></tr>`).join('')
+        <td>${c.lat !== null ? `<button class="btn xs" data-soil-map="${D.esc(c.id)}">📍 ดูจุด</button>` : ''}</td></tr>`).join('')
         : '<tr><td colspan="8" class="muted">ไม่พบรายการ</td></tr>') + '</tbody>';
+    HM.show(rows);
   }
 
   let lastMobile = null;
