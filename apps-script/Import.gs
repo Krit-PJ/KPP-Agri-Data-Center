@@ -8,6 +8,20 @@ const IMPORT_HEADERS = ['Import_ID', 'Time', 'Username', 'Name', 'File', 'Rows',
 const MAX_IMPORT_ROWS = 5000;
 const KEEP_BACKUPS = 10;
 
+/** ชนิดพืชที่มีอยู่ในระบบแล้ว · พืชชนิดใหม่เพิ่มได้เฉพาะ Super Admin (กันพิมพ์ผิดแล้วเกิดชีตมุมมอง/ไอคอนใหม่) */
+function knownCrops_() {
+  const seen = {};
+  CROP_ORDER.forEach(function (c) { seen[c] = true; });
+  readDataRows_().forEach(function (r) { seen[r[1]] = true; });
+  return seen;
+}
+function checkNewCrops_(crops, s) {
+  if (s && s.role === 'super') return;
+  const known = knownCrops_();
+  const unknown = crops.filter(function (c, i) { return c && !known[c] && crops.indexOf(c) === i; });
+  if (unknown.length) throw new Error('ไม่พบชนิดพืช "' + unknown.join('", "') + '" ในระบบ · การเพิ่มชนิดพืชใหม่ทำได้เฉพาะ Super Admin (ตรวจการสะกดชื่อพืช)');
+}
+
 function validateImportRows_(rows) {
   if (!Array.isArray(rows) || !rows.length) throw new Error('ไม่มีแถวข้อมูล');
   if (rows.length > MAX_IMPORT_ROWS) throw new Error('นำเข้าได้ครั้งละไม่เกิน ' + MAX_IMPORT_ROWS + ' แถว');
@@ -48,9 +62,10 @@ function diffImport_(clean) {
   return { insert: insert, update: update, unchanged: unchanged, changes: changes, existing: existing };
 }
 
-function importCheck_(input) {
+function importCheck_(input, s) {
   input = input || {};
   const v = validateImportRows_(input.rows);
+  checkNewCrops_(v.clean.map(function (r) { return r[1]; }), s);
   const d = diffImport_(v.clean);
   return { valid: v.clean.length, errors: v.errors.slice(0, 200), errorCount: v.errors.length,
     insert: d.insert, update: d.update, unchanged: d.unchanged, changes: d.changes };
@@ -60,6 +75,7 @@ function importCommit_(input, s) {
   input = input || {};
   const v = validateImportRows_(input.rows);
   if (v.errors.length) throw new Error('มีแถวที่ไม่ถูกต้อง ' + v.errors.length + ' แถว กรุณาแก้ไขก่อนนำเข้า');
+  checkNewCrops_(v.clean.map(function (r) { return r[1]; }), s);
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {

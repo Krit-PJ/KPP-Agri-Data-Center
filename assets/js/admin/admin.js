@@ -52,13 +52,14 @@
     $('who').innerHTML = `<span class="nm"><b>${esc(S.me.name)}</b> (${esc(S.me.username)})</span><span class="role ${S.me.role}">${S.me.role === 'super' ? 'Super Admin' : 'Admin'}</span><button class="btn sm" id="btn-logout">ออกจากระบบ</button>`;
     $('btn-logout').onclick = () => logout(false);
     document.querySelectorAll('[data-super]').forEach((b) => b.classList.toggle('hidden', S.me.role !== 'super'));
-    const want = location.hash.replace('#', '');
+    let want = location.hash.replace('#', '');
+    if (want === 'soil') want = 'data'; // ลิงก์เดิม: แท็บ ศดปช. รวมเข้าตารางข้อมูลแล้ว
     tab(document.querySelector(`[data-tab="${want}"]:not(.hidden)`) ? want : 'import');
     refreshPending();
   }
 
   // ---------- tabs ----------
-  const LOADERS = { data: () => window.DataTable.load(), history: loadHistory, requests: loadRequests, links: loadLinks, admins: loadAdmins, log: loadLog, soil: loadSoil, adminreq: loadAdminReq };
+  const LOADERS = { data: () => window.DataTable.load(), import: () => window.DataTable.importInit(), history: loadHistory, requests: loadRequests, links: loadLinks, admins: loadAdmins, log: loadLog, adminreq: loadAdminReq };
   function tab(name) {
     document.querySelectorAll('#adm-tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
     document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('on', t.id === 'tab-' + name));
@@ -67,7 +68,7 @@
   }
   $('adm-tabs').addEventListener('click', (e) => { const b = e.target.closest('button[data-tab]'); if (b) tab(b.dataset.tab); });
   // ใช้ร่วมกับตารางข้อมูล (datatable.js)
-  window.AdminCtx = { call, toast, esc, fmt, S, toGrids: (f) => toGrids(f) };
+  window.AdminCtx = { call, toast, esc, fmt, S, tab, toGrids: (f) => toGrids(f) };
 
   // =====================================================================
   // IMPORT
@@ -331,32 +332,8 @@
   // =====================================================================
   // ศดปช.
   // =====================================================================
-  let soil = [], soilFilter = 'pending', soilParsed = null, geo = null;
-  async function loadSoil() {
-    soil = await call('soilList');
-    const rows = soil.filter((c) => !soilFilter || !c.verified);
-    $('soil-admin-table').innerHTML = '<thead><tr><th>ศดปช.</th><th>อำเภอ</th><th>ประเภท</th><th>สมาชิก</th><th>Lat</th><th>Lng</th><th>หมายเหตุ</th><th>ประธาน (เฉพาะผู้ดูแล)</th><th></th></tr></thead><tbody>' +
-      (rows.length ? rows.map((c) => `<tr data-id="${esc(c.id)}"><td><b>${esc(c.name)}</b><br><small class="muted">${esc(c.location)}</small></td><td>${esc(c.district)}</td><td>${esc(c.type)}</td><td class="n">${fmt(c.members)}</td>
-        <td><input data-k="lat" value="${c.lat ?? ''}" inputmode="decimal"></td><td><input data-k="lng" value="${c.lng ?? ''}" inputmode="decimal"></td>
-        <td>${c.verified ? '✅ ยืนยันแล้ว' : '<span class="chk-flag">⚠️ ' + esc(c.note || 'รอตรวจสอบ') + '</span>'}</td>
-        <td>${esc(c.chair || '-')}<br><small class="muted">${esc(c.chair_phone || '')}</small></td>
-        <td><button class="btn xs ok" data-sv="1">${c.verified ? 'บันทึก' : 'บันทึก + ยืนยัน'}</button>
-          ${c.lat !== null ? `<a class="btn xs" target="_blank" rel="noopener" href="https://www.google.com/maps?q=${c.lat},${c.lng}">ดูพิกัด</a>` : ''}</td></tr>`).join('')
-        : '<tr><td colspan="9" class="muted">ไม่มีรายการ' + (soilFilter ? 'ที่รอตรวจสอบ ✅' : '') + '</td></tr>') + '</tbody>';
-  }
-  $('soil-filter').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-sf]'); if (!b) return;
-    soilFilter = b.dataset.sf;
-    document.querySelectorAll('#soil-filter .chip').forEach((c) => c.classList.toggle('on', c === b));
-    loadSoil().catch((err) => toast(err.message));
-  });
-  $('soil-admin-table').addEventListener('click', async (e) => {
-    const b = e.target.closest('[data-sv]'); if (!b) return;
-    const tr = b.closest('tr'), v = (k) => tr.querySelector(`[data-k="${k}"]`).value.trim();
-    b.disabled = true;
-    try { toast((await call('soilUpdate', { id: tr.dataset.id, lat: v('lat'), lng: v('lng'), verified: true, note: '' })).message); loadSoil(); }
-    catch (err) { toast(err.message); b.disabled = false; }
-  });
+  // ตรวจสอบ/ยืนยันพิกัด ศดปช. ย้ายไปอยู่ใน "ตารางข้อมูล" (ใช้ได้ทุกชุดที่มีพิกัด) · ส่วนนี้เหลือเฉพาะการนำเข้าทำเนียบ
+  let soilParsed = null, geo = null;
   $('soil-file').addEventListener('change', async (e) => {
     const f = e.target.files[0]; e.target.value = '';
     if (!f) return;
@@ -374,7 +351,7 @@
         </tbody></table></div><div class="row-btns"><button class="btn primary" id="soil-commit">✅ แทนที่ข้อมูล ศดปช. ทั้งชุด (${rows.length} ศูนย์)</button></div></div>`;
       $('soil-commit').onclick = async () => {
         if (!confirm('แทนที่ข้อมูล ศดปช. ทั้งหมดด้วยไฟล์นี้? ระบบจะสำรองข้อมูลเดิมไว้')) return;
-        try { toast((await call('soilImport', { rows: soilParsed.rows, fileName: soilParsed.file })).message); $('soil-preview').innerHTML = ''; loadSoil(); }
+        try { toast((await call('soilImport', { rows: soilParsed.rows, fileName: soilParsed.file })).message); $('soil-preview').innerHTML = ''; }
         catch (err) { toast(err.message); }
       };
     } catch (err) { $('soil-preview').innerHTML = `<div class="form-msg err">${esc(err.message)}</div>`; }

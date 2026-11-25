@@ -26,7 +26,7 @@
  *   SUPER_ADMIN_USERNAME / SUPER_ADMIN_PASSWORD  ใช้ครั้งแรกเท่านั้น รหัสผ่านถูกลบทันทีหลังเก็บ hash
  *   ADMIN_PREAPPROVED_PHONES  เบอร์ Admin ที่อนุมัติล่วงหน้า (คั่นด้วย ,)
  */
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 const DEFAULT_SPREADSHEET_ID = '1trKwin7IaNLYQtoxzWZr2wMo2fPGxhynmEzIvLg7DYE';
 const DEFAULT_SITE_URL = 'https://krit-pj.github.io/KPP-Agri-Data-Center/';
 
@@ -294,13 +294,14 @@ const API_METHODS = {
   dsSchema: { role: 'admin', fn: function (a, s) { return dsSchema_(s); } },
   dsList: { role: 'admin', fn: function (a) { return dsList_(a[0]); } },
   dsSave: { role: 'admin', fn: function (a, s) { return dsSave_(a[0], s); } },
+  dsSaveMany: { role: 'admin', fn: function (a, s) { return dsSaveMany_(a[0], s); } },
   dsDelete: { role: 'super', fn: function (a, s) { return dsDelete_(a[0], s); } },
   dsImport: { role: 'admin', fn: function (a, s) { return dsImport_(a[0], s); } },
   adminLogout: { role: 'admin', fn: function (a, s, t) { return adminLogout_(t); } },
   adminMe: { role: 'admin', fn: function (a, s) { return { username: s.username, name: s.name, role: s.role, version: APP_VERSION }; } },
   adminChangePassword: { role: 'admin', fn: function (a, s) { return adminChangePassword_(a[0], s); } },
   // import
-  importCheck: { role: 'admin', fn: function (a) { return importCheck_(a[0]); } },
+  importCheck: { role: 'admin', fn: function (a, s) { return importCheck_(a[0], s); } },
   importCommit: { role: 'admin', fn: function (a, s) { return importCommit_(a[0], s); } },
   importList: { role: 'admin', fn: function () { return importList_(); } },
   importRollback: { role: 'admin', fn: function (a, s) { return importRollback_(a[0], s); } },
@@ -663,7 +664,7 @@ function visitStats_(days) {
 
 // ===================== Data.gs =====================
 /** อ่านข้อมูลจากชีต data / districts, cache, และชีตมุมมองรายพืช */
-const BOOT_CACHE_KEY = 'boot:v2.4';
+const BOOT_CACHE_KEY = 'boot:v2.5';
 const BOOT_CACHE_SECONDS = 600;
 
 /** คืนแถว data เป็น array ตามลำดับ DATA_HEADERS (ตัวเลขแปลงแล้ว) */
@@ -799,7 +800,7 @@ function datasets_() {
   DATASETS_ = {
   crops: {
     label: 'สถิติพืชเศรษฐกิจที่สำคัญ', sheet: DATA_SHEET, keyFields: ['year', 'crop', 'district_code'], meta: false, order: 1,
-    note: 'แก้ไขรายแถวได้ที่นี่ · นำเข้าทั้งไฟล์ใช้แท็บ "นำเข้าข้อมูล" เหมือนเดิม',
+    note: 'แก้ไขรายแถว หรือใช้ปุ่ม "กรอกทั้งปี" (พืช × ปี × 11 อำเภอ) · นำเข้าทั้งไฟล์ใช้แท็บ "นำเข้าข้อมูล"',
     fields: [
       f_('year', 'year', 'year', 'ปี พ.ศ.', { required: true }), f_('crop', 'crop', 'text', 'พืช', { required: true, max: 60 }),
       f_('district_code', 'district_code', 'code', 'รหัสอำเภอ', { required: true }), f_('district', 'district', 'text', 'อำเภอ', { max: 60 }),
@@ -810,7 +811,7 @@ function datasets_() {
   },
   soil: {
     label: 'ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)', sheet: SOIL_SHEET, idPrefix: 'S', order: 2, headers: SOIL_HEADERS,
-    note: 'นำเข้าทำเนียบทั้งไฟล์ใช้แท็บ "ศดปช." เหมือนเดิม',
+    note: 'ตรวจ/ยืนยันพิกัดด้วยตัวกรอง "รอตรวจสอบพิกัด" หรือแก้พิกัดบนแผนที่ในฟอร์มแก้ไข · นำเข้าทำเนียบทั้งไฟล์ใช้แท็บ "นำเข้าข้อมูล"',
     fields: [
       f_('id', 'Center_ID', 'code', 'รหัส'), f_('name', 'Name', 'text', 'ชื่อ ศดปช.', { required: true }),
       f_('district_code', 'District_Code', 'code', 'รหัสอำเภอ'), f_('district', 'District', 'text', 'อำเภอ', { max: 60 }),
@@ -825,7 +826,7 @@ function datasets_() {
   },
   farm: {
     label: 'กลุ่มแปลงใหญ่', sheet: 'large_farms', idPrefix: 'F', order: 3, seed: 'FARM_SEED',
-    note: 'นำเข้าไฟล์ส่งออกจากระบบแปลงใหญ่ หรือไฟล์พิกัด ได้ที่ปุ่ม "นำเข้าไฟล์" ของตารางนี้',
+    note: 'นำเข้าไฟล์ส่งออกจากระบบแปลงใหญ่ / Template / ไฟล์พิกัด ได้ที่แท็บ "นำเข้าข้อมูล"',
     fields: [
       f_('id', 'id', 'code', 'รหัส'), f_('name', 'name', 'text', 'ชื่อแปลงใหญ่', { required: true }),
       f_('year_start', 'year_start', 'year', 'ปีที่เริ่ม'), f_('group', 'group', 'text', 'กลุ่มสินค้า', { max: 60 }),
@@ -861,7 +862,7 @@ function datasets_() {
   },
   pest: {
     label: 'ศูนย์จัดการศัตรูพืชชุมชน (ศจช.)', sheet: 'pest_centers', idPrefix: 'P', order: 4, seed: 'PEST_SEED',
-    note: 'นำเข้าทำเนียบ ศจช. ทั้งไฟล์ได้ที่ปุ่ม "นำเข้าไฟล์" ของตารางนี้ (พิกัด UTM 47N แปลงให้อัตโนมัติ)',
+    note: 'นำเข้าทำเนียบ ศจช. ทั้งไฟล์ได้ที่แท็บ "นำเข้าข้อมูล" (พิกัด UTM 47N แปลงให้อัตโนมัติ)',
     fields: [
       f_('id', 'id', 'code', 'รหัส'), f_('name', 'name', 'text', 'ชื่อ ศจช.', { required: true }), f_('full_name', 'full_name', 'text', 'ชื่อเต็มตามทะเบียน'),
       f_('year_start', 'year_start', 'year', 'ปีที่จัดตั้ง'), f_('level', 'level', 'select', 'ระดับชั้น', { options: ['A', 'B', 'C'] }),
@@ -1035,6 +1036,8 @@ function dsSave_(a, s) {
     if (!d.keyFields && dsBlank_(o.id)) o.id = d.idPrefix + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
     const e = dsValidate_(d, o);
     if (e.length) throw new Error(e.join(', '));
+    if (name === 'crops') checkNewCrops_([o.crop], s);
+    if (name === 'crops') dsFillCropYield_(o, input);
     const key = dsKeyOf_(d, o);
     const dup = ctx.items.find(function (x) { return x !== it && dsKeyOf_(d, x.obj) === key; });
     if (dup) throw new Error('มีแถว ' + key + ' อยู่แล้ว');
@@ -1046,6 +1049,73 @@ function dsSave_(a, s) {
     audit_(s, (it ? 'ds_update:' : 'ds_add:') + name, key + ' | ' + (it ? diff : JSON.stringify(dsMask_(d, o))));
     o._id = key; o._v = dsVer_(d, o);
     return { message: (it ? 'บันทึกการแก้ไข ' : 'เพิ่ม ') + key + ' แล้ว', item: o, changed: diff };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/** ผลผลิตต่อไร่ (กก.) คำนวณจากผลผลิต (ตัน) ÷ เนื้อที่ เมื่อผู้ใช้ไม่ได้กรอกเอง */
+function dsFillCropYield_(o, input) {
+  if (!['planted', 'harvested', 'production'].some(function (k) { return k in input; })) return;
+  const blank = function (k) { return !(k in input) || dsBlank_(input[k]); };
+  if (blank('yield_planted')) o.yield_planted = o.planted ? Math.round(o.production / o.planted * 1000) : 0;
+  if (blank('yield_harvested')) o.yield_harvested = o.harvested ? Math.round(o.production / o.harvested * 1000) : 0;
+}
+
+/**
+ * บันทึกหลายแถวในครั้งเดียว (เช่น กรอกทั้งปี: พืช × ปี × 11 อำเภอ) — ทั้งชุดสำเร็จหรือไม่บันทึกเลย
+ * a = { dataset, items: [{ id?, v?, item }] }  · แถวที่มี id ต้องส่ง v เพื่อตรวจชนกัน
+ */
+function dsSaveMany_(a, s) {
+  a = a || {};
+  const name = String(a.dataset || ''), d = dsDef_(name);
+  const list = Array.isArray(a.items) ? a.items : [];
+  if (!list.length) throw new Error('ไม่มีรายการ');
+  if (list.length > 500) throw new Error('บันทึกได้ครั้งละไม่เกิน 500 แถว');
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const ctx = dsRead_(d);
+    const byKey = {};
+    ctx.items.forEach(function (x) { byKey[dsKeyOf_(d, x.obj)] = x; });
+    const plan = [], errs = [], seen = {};
+    list.forEach(function (row, i) {
+      const input = row.item || {};
+      let it = null;
+      if (!dsBlank_(row.id)) {
+        it = byKey[String(row.id)];
+        if (!it) { errs.push('แถว ' + (i + 1) + ': ไม่พบแถวเดิม (อาจถูกลบไปแล้ว)'); return; }
+        if (String(row.v || '') !== dsVer_(d, it.obj)) { errs.push('CONFLICT: แถว ' + row.id + ' ถูกแก้ไขโดยผู้อื่นหลังจากคุณเปิดตาราง'); return; }
+      }
+      const before = it ? it.obj : null;
+      const o = {};
+      d.fields.forEach(function (f) { o[f.key] = (f.key in input) ? dsCast_(f, input[f.key]) : (before ? before[f.key] : dsCast_(f, '')); });
+      if (name === 'crops') dsFillCropYield_(o, input);
+      if (!d.keyFields && dsBlank_(o.id)) o.id = d.idPrefix + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyMMddHHmmss') + String(i).padStart(3, '0');
+      const e = dsValidate_(d, o);
+      const key = dsKeyOf_(d, o);
+      if (seen[key]) e.push('ซ้ำในชุดที่ส่งมา');
+      seen[key] = true;
+      if (!it && byKey[key]) e.push('มีแถว ' + key + ' อยู่แล้ว');
+      if (e.length) { errs.push('แถว ' + (i + 1) + ' (' + key + '): ' + e.join(', ')); return; }
+      if (it && dsVer_(d, o) === dsVer_(d, before)) return; // ไม่เปลี่ยนแปลง
+      plan.push({ it: it, before: before, o: o, key: key });
+    });
+    if (errs.length) throw new Error(errs.slice(0, 5).join(' | ') + (errs.length > 5 ? ' (และอีก ' + (errs.length - 5) + ')' : ''));
+    if (name === 'crops') checkNewCrops_(plan.map(function (p) { return p.o.crop; }), s);
+    plan.forEach(function (p) {
+      const row = dsRowOut_(d, ctx, p.o, p.it ? p.it.raw : null, s.username);
+      if (p.it) ctx.sh.getRange(p.it.row, 1, 1, row.length).setValues([row]); else ctx.sh.appendRow(row);
+    });
+    if (plan.length) {
+      dsAfterWrite_(name, d, plan[0].o);
+      audit_(s, 'ds_bulk:' + name, plan.length + ' แถว | ' + plan.slice(0, 15).map(function (p) {
+        return p.key + (p.it ? ' {' + dsDiff_(d, p.before, p.o) + '}' : ' (ใหม่)');
+      }).join(' ; ').slice(0, 1500));
+    }
+    const added = plan.filter(function (p) { return !p.it; }).length;
+    return { message: plan.length ? 'บันทึก ' + plan.length + ' แถว (ใหม่ ' + added + ', แก้ไข ' + (plan.length - added) + ')' : 'ไม่มีการเปลี่ยนแปลง',
+      saved: plan.length, items: plan.map(function (p) { const o = p.o; o._id = p.key; o._v = dsVer_(d, o); return o; }) };
   } finally {
     lock.releaseLock();
   }
@@ -1186,6 +1256,20 @@ const IMPORT_HEADERS = ['Import_ID', 'Time', 'Username', 'Name', 'File', 'Rows',
 const MAX_IMPORT_ROWS = 5000;
 const KEEP_BACKUPS = 10;
 
+/** ชนิดพืชที่มีอยู่ในระบบแล้ว · พืชชนิดใหม่เพิ่มได้เฉพาะ Super Admin (กันพิมพ์ผิดแล้วเกิดชีตมุมมอง/ไอคอนใหม่) */
+function knownCrops_() {
+  const seen = {};
+  CROP_ORDER.forEach(function (c) { seen[c] = true; });
+  readDataRows_().forEach(function (r) { seen[r[1]] = true; });
+  return seen;
+}
+function checkNewCrops_(crops, s) {
+  if (s && s.role === 'super') return;
+  const known = knownCrops_();
+  const unknown = crops.filter(function (c, i) { return c && !known[c] && crops.indexOf(c) === i; });
+  if (unknown.length) throw new Error('ไม่พบชนิดพืช "' + unknown.join('", "') + '" ในระบบ · การเพิ่มชนิดพืชใหม่ทำได้เฉพาะ Super Admin (ตรวจการสะกดชื่อพืช)');
+}
+
 function validateImportRows_(rows) {
   if (!Array.isArray(rows) || !rows.length) throw new Error('ไม่มีแถวข้อมูล');
   if (rows.length > MAX_IMPORT_ROWS) throw new Error('นำเข้าได้ครั้งละไม่เกิน ' + MAX_IMPORT_ROWS + ' แถว');
@@ -1226,9 +1310,10 @@ function diffImport_(clean) {
   return { insert: insert, update: update, unchanged: unchanged, changes: changes, existing: existing };
 }
 
-function importCheck_(input) {
+function importCheck_(input, s) {
   input = input || {};
   const v = validateImportRows_(input.rows);
+  checkNewCrops_(v.clean.map(function (r) { return r[1]; }), s);
   const d = diffImport_(v.clean);
   return { valid: v.clean.length, errors: v.errors.slice(0, 200), errorCount: v.errors.length,
     insert: d.insert, update: d.update, unchanged: d.unchanged, changes: d.changes };
@@ -1238,6 +1323,7 @@ function importCommit_(input, s) {
   input = input || {};
   const v = validateImportRows_(input.rows);
   if (v.errors.length) throw new Error('มีแถวที่ไม่ถูกต้อง ' + v.errors.length + ' แถว กรุณาแก้ไขก่อนนำเข้า');
+  checkNewCrops_(v.clean.map(function (r) { return r[1]; }), s);
   const lock = LockService.getScriptLock();
   lock.waitLock(30000);
   try {

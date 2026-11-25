@@ -27,6 +27,13 @@
   }
 
   /** รูปแบบ 1: ไฟล์ส่งออกระบบแปลงใหญ่ */
+  const yesLike = (v) => { const n = num(v); return n !== null ? n > 0 : /^(ใช่|มี|ได้รับ|yes|✓|✔)$/i.test(norm(v)); };
+  function coordOf(x, y) {
+    if (!norm(x) && !norm(y)) return { lat: null, lng: null, coord_note: '' };
+    const c = SP.fixCoord(x, y);
+    return c.lat === null ? { lat: null, lng: null, coord_note: `พิกัดไม่ถูกต้อง (${norm(x)}, ${norm(y)})` }
+      : { lat: Math.round(c.lat * 1e6) / 1e6, lng: Math.round(c.lng * 1e6) / 1e6, coord_note: c.note || '' };
+  }
   function parseDoae(grid, ctx) {
     const hr = findHeader(grid, (h) => h.includes('ชื่อแปลงใหญ่') && h.includes('สินค้าหลัก'));
     if (hr < 0) return null;
@@ -39,7 +46,9 @@
       chair_first: at('ชื่อประธาน'), chair_last: at('นามสกุลประธาน'), chair_phone: at('โทรศัพท์', 1),
       members: at('เกษตรกร'), member_area: at('พื้นที่(ไร่)'), plot_farmers: at('เกษตรกร', 1), plots: at('แปลง'), plot_area: at('พื้นที่(ไร่)', 1),
       cost_before: at('ต้นทุนก่อน'), cost_after: at('ต้นทุนหลัง'), yield_before: at('ผลผลิตก่อน'), yield_after: at('ผลผลิตหลัง'),
-      gap: at('GAP'), organic: at('อินทรีย์'), grouping: at('รวมกลุ่ม'), market_before: at('รูปแบบตลาดก่อน'), market_after: at('รูปแบบตลาดหลัง'),
+      gap: at('GAP'), organic: at('อินทรีย์'),
+      // คอลัมน์เสริมจาก Template: พิกัด (ละติจูด/ลองจิจูด หรือ UTM 47N)
+      cx: h.findIndex((t) => /^(พิกัด\s*)?(ละติจูด|lat|utm\s*x|x\b)/i.test(t)), cy: h.findIndex((t) => /^(พิกัด\s*)?(ลองจิจูด|long|lng|utm\s*y|y\b)/i.test(t)), grouping: at('รวมกลุ่ม'), market_before: at('รูปแบบตลาดก่อน'), market_after: at('รูปแบบตลาดหลัง'),
     };
     const byName = {};
     (ctx.districts || []).forEach((d) => { byName[norm(d.district).replace(/\s/g, '')] = String(d.district_code); });
@@ -59,9 +68,9 @@
         members: num(g(r, 'members')) || 0, member_area: num(g(r, 'member_area')) || 0, plot_farmers: num(g(r, 'plot_farmers')) || 0,
         plots: num(g(r, 'plots')) || 0, plot_area: num(g(r, 'plot_area')) || 0,
         cost_before: num(g(r, 'cost_before')), cost_after: num(g(r, 'cost_after')), yield_before: num(g(r, 'yield_before')), yield_after: num(g(r, 'yield_after')),
-        gap: !!num(g(r, 'gap')), organic: !!num(g(r, 'organic')), grouping: norm(g(r, 'grouping')),
+        gap: yesLike(g(r, 'gap')), organic: yesLike(g(r, 'organic')), grouping: norm(g(r, 'grouping')),
         market_before: norm(g(r, 'market_before')), market_after: norm(g(r, 'market_after')),
-        lat: null, lng: null, coord_note: '',
+        ...coordOf(g(r, 'cx'), g(r, 'cy')),
         manager: [norm(g(r, 'mgr_first')), norm(g(r, 'mgr_last'))].filter(Boolean).join(' '), manager_position: norm(g(r, 'mgr_pos')),
         manager_phone: phone(g(r, 'mgr_phone')), chair: [norm(g(r, 'chair_first')), norm(g(r, 'chair_last'))].filter(Boolean).join(' '),
         chair_phone: phone(g(r, 'chair_phone')),

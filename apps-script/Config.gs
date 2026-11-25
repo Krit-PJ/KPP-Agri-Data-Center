@@ -23,7 +23,7 @@
  *   SUPER_ADMIN_USERNAME / SUPER_ADMIN_PASSWORD  ใช้ครั้งแรกเท่านั้น รหัสผ่านถูกลบทันทีหลังเก็บ hash
  *   ADMIN_PREAPPROVED_PHONES  เบอร์ Admin ที่อนุมัติล่วงหน้า (คั่นด้วย ,)
  */
-const APP_VERSION = '2.4.0';
+const APP_VERSION = '2.5.0';
 const DEFAULT_SPREADSHEET_ID = '1trKwin7IaNLYQtoxzWZr2wMo2fPGxhynmEzIvLg7DYE';
 const DEFAULT_SITE_URL = 'https://krit-pj.github.io/KPP-Agri-Data-Center/';
 

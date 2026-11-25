@@ -1,5 +1,5 @@
 /** อ่านข้อมูลจากชีต data / districts, cache, และชีตมุมมองรายพืช */
-const BOOT_CACHE_KEY = 'boot:v2.4';
+const BOOT_CACHE_KEY = 'boot:v2.5';
 const BOOT_CACHE_SECONDS = 600;
 
 /** คืนแถว data เป็น array ตามลำดับ DATA_HEADERS (ตัวเลขแปลงแล้ว) */

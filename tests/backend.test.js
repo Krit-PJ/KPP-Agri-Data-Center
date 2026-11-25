@@ -216,7 +216,7 @@ test('v2.2 datasets: seeds, public allowlist, edit/delete/conflict/audit, roles'
   const { g, out } = boot();
   assert.match(out.join('\n'), /กลุ่มแปลงใหญ่ 107 แถว/);
   const b = g.get({ action: 'bootstrap' }).result;
-  assert.strictEqual(b.version, '2.4.0');
+  assert.strictEqual(b.version, '2.5.0');
   assert.strictEqual(b.pest.length, 36);
   assert.ok(!/"chair/.test(JSON.stringify(b.pest)));
   assert.deepStrictEqual([b.farms.length, b.lc.length, b.lcnet.length, b.lctype.length], [107, 11, 11, 18]);
@@ -271,4 +271,35 @@ test('v2.2 datasets: seeds, public allowlist, edit/delete/conflict/audit, roles'
   assert.ok(g.ss.getSheets().some((s) => s.getName().startsWith('_bak_large_farms_')));
   assert.match(g.post({ method: 'dsImport', token: adm, args: [{ dataset: 'crops', rows: [{}] }] }).error, /แท็บเดิม/);
   assert.match(g.post({ method: 'dsList', args: [{ dataset: 'farm' }] }).error, /ADMIN_SESSION_EXPIRED/);
+});
+
+test('v2.5: bulk save (crop × year × districts), yield auto-calc, new-crop guard', () => {
+  const { g } = boot();
+  const sup = login(g, 'krit', 'Dev#pass2026');
+  assert.ok(g.post({ method: 'adminSave', token: sup, args: [{ username: '0812345678', name: 'แอดมิน', role: 'admin', password: 'Temp@2026x' }] }).ok);
+  const adm = login(g, '0812345678', 'Temp@2026x');
+  const rows = g.post({ method: 'dsList', token: adm, args: [{ dataset: 'crops' }] }).result.rows;
+  const y67 = rows.filter((r) => r.crop === 'อ้อย').sort((a, b) => b.year - a.year);
+  const dist = g.get({ action: 'bootstrap' }).result.districts;
+  // ปีใหม่ 2569: ใหม่ทั้ง 11 อำเภอ + แก้ปีเดิมหนึ่งแถว ในการเรียกครั้งเดียว
+  const items = dist.map((d) => ({ item: { year: 2569, crop: 'อ้อย', district_code: d.district_code, district: d.district, planted: 1000, harvested: 900, production: 9000 } }));
+  items.push({ id: y67[0]._id, v: y67[0]._v, item: { planted: 1234 } });
+  const r = g.post({ method: 'dsSaveMany', token: adm, args: [{ dataset: 'crops', items }] });
+  assert.ok(r.ok, r.error);
+  assert.strictEqual(r.result.saved, dist.length + 1);
+  const b = g.get({ action: 'bootstrap' }).result.rows.filter((x) => x[0] === 2569 && x[1] === 'อ้อย');
+  assert.strictEqual(b.length, dist.length);
+  assert.deepStrictEqual(b[0].slice(4), [1000, 900, 9000, 9000, 10000]); // ผลผลิต/ไร่ คำนวณให้
+  // บันทึกซ้ำด้วย v เดิม → ชนกัน ทั้งชุดไม่ถูกบันทึก
+  const again = g.post({ method: 'dsSaveMany', token: adm, args: [{ dataset: 'crops', items: [{ id: y67[0]._id, v: y67[0]._v, item: { planted: 1 } }, { item: { year: 2570, crop: 'อ้อย', district_code: dist[0].district_code, planted: 1 } }] }] });
+  assert.match(again.error, /CONFLICT/);
+  assert.ok(!g.get({ action: 'bootstrap' }).result.rows.some((x) => x[0] === 2570));
+  // พืชชนิดใหม่: Admin ไม่ได้ · Super Admin ได้
+  const newCrop = { dataset: 'crops', item: { year: 2569, crop: 'อ้อยย', district_code: dist[0].district_code, planted: 5 } };
+  assert.match(g.post({ method: 'dsSave', token: adm, args: [newCrop] }).error, /เฉพาะ Super Admin/);
+  assert.match(g.post({ method: 'importCheck', token: adm, args: [{ rows: [{ year: 2569, crop: 'ทุเรียน', district_code: dist[0].district_code, planted: 1, harvested: 1, production: 1, yield_planted: 1, yield_harvested: 1 }] }] }).error, /เฉพาะ Super Admin/);
+  assert.ok(g.post({ method: 'dsSave', token: sup, args: [{ ...newCrop, item: { ...newCrop.item, crop: 'ทุเรียน' } }] }).ok);
+  assert.ok(g.get({ action: 'bootstrap' }).result.crops.includes('ทุเรียน'));
+  assert.ok(g.post({ method: 'dsSave', token: adm, args: [{ dataset: 'crops', item: { year: 2569, crop: 'ทุเรียน', district_code: dist[1].district_code, planted: 5 } }] }).ok, 'พืชที่ Super Admin เพิ่มแล้ว Admin ใช้ได้');
+  assert.ok(JSON.stringify(g.ss.getSheetByName('admin_log').rows).includes('ds_bulk:crops'));
 });

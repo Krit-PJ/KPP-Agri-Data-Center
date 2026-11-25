@@ -11,7 +11,7 @@
 | `#soil` `#pest` `#farm` `#lc` ศูนย์และกลุ่ม | แดชบอร์ด + แผนที่ที่ตั้ง ศดปช. / ศจช. (สีตามระดับชั้น A/B/C) / กลุ่มแปลงใหญ่ / ศพก. (สีพื้นอำเภอ = จำนวนเครือข่าย) · ตัวกรองตารางกรองจุดบนแผนที่ · 📍 ในตารางเปิดจุด · คลิกจุดเน้นแถวในตาราง |
 | `#request` ขอข้อมูล | แบบฟอร์มขอดาวน์โหลด (ชื่อ-สกุล ตำแหน่ง หน่วยงาน วัตถุประสงค์) → Admin อนุมัติ → ลิงก์ทางอีเมล |
 | `#links` ระบบเชื่อมโยง | ลิงก์ไปยังระบบอื่น (Super Admin จัดการได้) + สถิติการเข้าใช้งาน |
-| `admin.html` | Super Admin / Admin: นำเข้าข้อมูล, **ตารางข้อมูลทุกชั้น (เพิ่ม/แก้ไข/ลบ)**, อนุมัติคำขอ, จัดการ ศดปช. ลิงก์ และผู้ดูแล · `admin.html#request-admin` แบบฟอร์มขอสิทธิ์ Admin |
+| `admin.html` | Super Admin / Admin: **นำเข้าข้อมูลทุกชุดที่เดียว + ดาวน์โหลด Template**, **ตารางข้อมูลทุกชั้น** (เพิ่ม/แก้ไข/ลบ, กรอกทั้งปี 11 อำเภอ, ตรวจ/ยืนยันพิกัด, เลือกพิกัดบนแผนที่), อนุมัติคำขอ, ลิงก์ และผู้ดูแล · `admin.html#request-admin` แบบฟอร์มขอสิทธิ์ Admin |
 
 เลือกพืชจากแถบไอคอนด้านบน แล้วทั้งแผนที่ แดชบอร์ด และ URL จะเปลี่ยนตาม (แชร์ลิงก์ได้ เช่น `#dashboard?crop=อ้อย&years=2565,2566`)
 
@@ -42,7 +42,9 @@ assets/js/admin/soil-parser.js  อ่านทำเนียบ ศดปช. 
 assets/js/admin/farm-parser.js  อ่านไฟล์ส่งออกระบบแปลงใหญ่ / ไฟล์พิกัดแปลงใหญ่
 assets/js/admin/pest-parser.js  อ่านทำเนียบ ศจช. (หัว 3 แถว, แถวต่อเนื่อง, UTM 47N)
 assets/js/admin/admin.js     หน้าผู้ดูแล
-assets/js/admin/datatable.js ตารางข้อมูลแต่ละชั้นข้อมูล (เพิ่ม/แก้ไข/ลบ/นำเข้า)
+assets/js/admin/datatable.js ตารางข้อมูล + ศูนย์รวมการนำเข้า + กรอกทั้งปี + แผนที่เลือกพิกัด
+assets/js/admin/generic-parser.js อ่านไฟล์ชุดข้อมูลทั่วไป (ศพก.) ตามหัวคอลัมน์ใน schema
+assets/templates/            Template .xlsx ทุกชุด (สร้างด้วย python3 tests/build_templates.py)
 apps-script/*.gs           ระบบหลังบ้าน (วางใน Apps Script)
 data/                      ไฟล์สำรอง + ขอบเขตอำเภอ
 docs/                      DEPLOY, SHEET_SCHEMA, DAX_to_JS
@@ -53,7 +55,7 @@ tests/                     ทดสอบ backend (จำลอง Apps Script)
 
 ```bash
 npm install
-npm test                 # 27 ชุดทดสอบ: backend + importer + ศดปช. + แปลงใหญ่ + ศจช.
+npm test                 # 34 ชุดทดสอบ: backend + importer + ศดปช. + แปลงใหญ่ + ศจช. + Template ทุกไฟล์นำเข้าได้จริง
 npm run dev              # http://localhost:8790 พร้อม Apps Script จำลอง (ทดสอบในเครื่อง: krit / Dev#pass2026)
 ```
 

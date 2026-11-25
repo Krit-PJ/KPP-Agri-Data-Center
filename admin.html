@@ -8,8 +8,9 @@
   <title>ผู้ดูแลระบบ | KPP Agri Data Center</title>
   <link rel="icon" href="assets/img/logo-doae.png" />
   <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="assets/css/style.css?v=2.4.0" />
-  <link rel="stylesheet" href="assets/css/admin.css?v=2.4.0" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="assets/css/style.css?v=2.5.0" />
+  <link rel="stylesheet" href="assets/css/admin.css?v=2.5.0" />
 </head>
 <body class="adm">
   <header class="appbar">
@@ -73,7 +74,6 @@
       <button data-tab="data">🗂️ ตารางข้อมูล</button>
       <button data-tab="history">🕘 ประวัติการนำเข้า</button>
       <button data-tab="requests">📥 คำขอดาวน์โหลด <span class="badge" id="pending-badge"></span></button>
-      <button data-tab="soil">🧪 ศดปช.</button>
       <button data-tab="adminreq" data-super>🙋 คำขอสิทธิ์ Admin <span class="badge" id="areq-badge"></span></button>
       <button data-tab="links" data-super>🔗 ลิงก์เชื่อมโยง</button>
       <button data-tab="admins" data-super>👥 ผู้ดูแลระบบ</button>
@@ -84,8 +84,18 @@
     <div class="adm-body">
       <!-- IMPORT -->
       <div class="tab" id="tab-import">
-        <div class="card pad">
+        <div class="card pad imp-head">
           <h3>นำเข้าข้อมูลจากไฟล์</h3>
+          <p class="muted">1) เลือกชุดข้อมูล · 2) ดาวน์โหลด Template แล้วกรอก (หรือใช้ไฟล์จากระบบต้นทาง) · 3) เลือกไฟล์ · 4) ตรวจตัวอย่างแล้วยืนยัน — ระบบสำรองข้อมูลเดิมก่อนนำเข้าทุกครั้ง</p>
+          <div class="chips" id="imp-pick"></div>
+          <div class="tpl-bar">
+            <a class="btn primary" id="tpl-link" href="#" download>⬇️ ดาวน์โหลด Template (.xlsx)</a>
+            <span class="muted" id="tpl-note"></span>
+          </div>
+        </div>
+        <div id="imp-crops">
+        <div class="card pad">
+          <h3>สถิติพืชเศรษฐกิจรายอำเภอ</h3>
           <p class="muted">รองรับ <b>Excel (.xlsx/.xls)</b>, <b>CSV</b> และ <b>PDF ที่เป็นข้อความ</b> (ไม่รองรับ PDF ที่สแกนเป็นภาพ) ระบบจะหาหัวตาราง ชื่ออำเภอ ชนิดพืช และปีให้อัตโนมัติ
             กรุณาตรวจการจับคู่คอลัมน์และตัวอย่างข้อมูลก่อนยืนยันทุกครั้ง · ระบบสำรองข้อมูลก่อนนำเข้าและย้อนกลับได้</p>
           <label class="drop" id="drop">
@@ -104,6 +114,21 @@
           </div>
           <div id="check-result"></div>
         </div>
+        </div>
+        <div id="imp-soil" hidden>
+          <div class="card pad"><h3>ทำเนียบศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.) — แทนที่ทั้งชุด</h3>
+            <p class="muted">Excel/CSV รูปแบบทำเนียบ ศดปช. หรือ Template · ระบบแก้พิกัดที่สลับ lat/long แปลง UTM 47N และหาอำเภอจากพิกัดให้ · คงชื่อ/เบอร์ประธานเดิมถ้าไฟล์ใหม่เว้นว่าง · ตรวจ/ยืนยันพิกัดได้ที่แท็บ "ตารางข้อมูล"</p>
+            <label class="drop"><input type="file" id="soil-file" accept=".xlsx,.xls,.csv" /><span>📂 เลือกไฟล์ทำเนียบ ศดปช.</span></label>
+            <div id="soil-preview"></div>
+          </div>
+        </div>
+        <div id="imp-generic" hidden>
+          <div class="card pad"><h3 id="gen-title"></h3>
+            <p class="muted" id="gen-desc"></p>
+            <label class="drop"><input type="file" id="gen-file" accept=".xlsx,.xls,.csv" /><span>📂 เลือกไฟล์</span></label>
+            <div id="gen-preview"></div>
+          </div>
+        </div>
       </div>
 
       <!-- HISTORY -->
@@ -120,16 +145,29 @@
             <span class="muted" id="ds-count"></span>
             <span class="sp"></span>
             <button class="btn sm" id="ds-reload">🔄 โหลดใหม่</button>
-            <label class="btn sm hidden" id="ds-import-btn">📂 นำเข้าไฟล์<input type="file" id="ds-file" accept=".xlsx,.xls,.csv" hidden /></label>
+            <button class="btn sm hidden" id="ds-import-btn">📤 นำเข้าไฟล์</button>
+            <button class="btn sm hidden" id="ds-bulk">🧮 กรอกทั้งปี (11 อำเภอ)</button>
             <button class="btn sm primary" id="ds-add">➕ เพิ่มแถว</button>
           </div>
-          <div id="ds-import"></div>
+          <div class="ds-filters" id="ds-filters"></div>
           <div class="tbl-wrap tall"><table id="ds-table"></table></div>
           <div class="pager" id="ds-pager"></div>
         </div>
+        <dialog id="ds-bulk-dialog" class="ds-dialog wide">
+          <form method="dialog" id="bulk-form">
+            <h3>🧮 กรอกสถิติทั้งปี: พืช × ปี × 11 อำเภอ</h3>
+            <div class="bulk-pick"><label>ชนิดพืช<select id="bulk-crop"></select></label><label>ปี พ.ศ.<select id="bulk-year"></select></label>
+              <span class="muted" id="bulk-info"></span></div>
+            <div class="tbl-wrap"><table id="bulk-table"></table></div>
+            <p class="muted small">ผลผลิตต่อไร่คำนวณให้อัตโนมัติ (ผลผลิต ตัน × 1,000 ÷ เนื้อที่) · ⚠️ = ค่าผิดปกติที่ควรตรวจ (ไม่บังคับ) · อำเภอที่เว้นว่างทั้งแถวจะไม่บันทึก</p>
+            <div class="form-msg" id="bulk-msg"></div>
+            <div class="row-btns"><button class="btn primary" type="submit">💾 บันทึกทั้งชุด</button><button class="btn" type="button" id="bulk-cancel">ยกเลิก</button></div>
+          </form>
+        </dialog>
         <dialog id="ds-dialog" class="ds-dialog">
           <form method="dialog" id="ds-form">
             <h3 id="ds-form-h">แก้ไข</h3>
+            <div class="pick-wrap hidden" id="ds-pickmap-wrap"><div class="pick-h"><b>📍 พิกัดที่ตั้ง</b> <span class="muted">คลิกบนแผนที่หรือลากหมุดเพื่อตั้งพิกัด</span> <span id="ds-pick-msg"></span></div><div id="ds-pickmap"></div></div>
             <div class="grid2" id="ds-fields"></div>
             <div class="form-msg" id="ds-msg"></div>
             <div class="row-btns"><button class="btn primary" type="submit" value="save">บันทึก</button><button class="btn" type="button" id="ds-cancel">ยกเลิก</button></div>
@@ -146,20 +184,6 @@
           <button class="chip" data-st="rejected">ไม่อนุมัติ</button><button class="chip" data-st="">ทั้งหมด</button>
         </div>
         <div id="req-list"></div>
-      </div>
-
-      <!-- SOIL -->
-      <div class="tab" id="tab-soil">
-        <div class="card pad"><h3>ศูนย์จัดการดินปุ๋ยชุมชน (ศดปช.)</h3>
-          <p class="muted">แก้พิกัดแล้วกด "ยืนยัน" สำหรับศูนย์ที่ระบบแก้พิกัดให้อัตโนมัติ · ชื่อและเบอร์ประธานเห็นเฉพาะผู้ดูแล ไม่แสดงบนเว็บสาธารณะ</p>
-          <div class="chips" id="soil-filter"><button class="chip on" data-sf="pending">รอตรวจสอบ</button><button class="chip" data-sf="">ทั้งหมด</button></div>
-          <div class="tbl-wrap tall"><table id="soil-admin-table"></table></div>
-        </div>
-        <div class="card pad"><h3>นำเข้าทำเนียบ ศดปช. (แทนที่ทั้งชุด)</h3>
-          <p class="muted">ไฟล์ Excel/CSV รูปแบบทำเนียบ ศดปช. ระบบแก้พิกัดที่สลับ lat/long แปลง UTM 47N และหาอำเภอจากพิกัดให้ · สำรองข้อมูลเดิมไว้ทุกครั้ง</p>
-          <label class="drop"><input type="file" id="soil-file" accept=".xlsx,.xls,.csv" /><span>📂 เลือกไฟล์ทำเนียบ ศดปช.</span></label>
-          <div id="soil-preview"></div>
-        </div>
       </div>
 
       <!-- ADMIN REQUESTS (super) -->
@@ -227,14 +251,16 @@
 
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="assets/js/config.js?v=2.4.0"></script>
-  <script src="assets/js/api.js?v=2.4.0"></script>
-  <script src="assets/js/icons.js?v=2.4.0"></script>
-  <script src="assets/js/admin/soil-parser.js?v=2.4.0"></script>
-  <script src="assets/js/admin/importer.js?v=2.4.0"></script>
-  <script src="assets/js/admin/farm-parser.js?v=2.4.0"></script>
-  <script src="assets/js/admin/pest-parser.js?v=2.4.0"></script>
-  <script src="assets/js/admin/admin.js?v=2.4.0"></script>
-  <script src="assets/js/admin/datatable.js?v=2.4.0"></script>
+  <script src="assets/js/config.js?v=2.5.0"></script>
+  <script src="assets/js/api.js?v=2.5.0"></script>
+  <script src="assets/js/icons.js?v=2.5.0"></script>
+  <script src="assets/js/admin/soil-parser.js?v=2.5.0"></script>
+  <script src="assets/js/admin/importer.js?v=2.5.0"></script>
+  <script src="assets/js/admin/farm-parser.js?v=2.5.0"></script>
+  <script src="assets/js/admin/pest-parser.js?v=2.5.0"></script>
+  <script src="assets/js/admin/generic-parser.js?v=2.5.0"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="assets/js/admin/admin.js?v=2.5.0"></script>
+  <script src="assets/js/admin/datatable.js?v=2.5.0"></script>
 </body>
 </html>
