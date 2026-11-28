@@ -117,3 +117,31 @@ test('combine: later tables override duplicates, error rows excluded', () => {
   const c = I.combine([a, b]);
   assert.strictEqual(c.rows.length, 1); assert.strictEqual(c.rows[0].planted, 2); assert.strictEqual(c.duplicates.length, 1);
 });
+
+// ---- v2.5.1: ไฟล์ Template ที่ผู้ใช้กรอกจริง (ข้าวนาปรัง 2567) นำเข้าแล้วค่าเพี้ยน ----
+test('Template ที่กรอกแล้ว: ชีตซ่อน "รายการ" ต้องไม่ถูกอ่านเป็นตารางข้อมูล', () => {
+  const XLSX = require('xlsx');
+  const wb = XLSX.readFile(path.join(__dirname, 'fixtures/template_crops_filled_2567.xlsx'));
+  const meta = wb.Workbook.Sheets;
+  assert.deepStrictEqual(wb.SheetNames, ['กรอกข้อมูล', 'รายการ', 'คำอธิบาย']);
+  assert.ok(meta[1].Hidden, 'ชีต "รายการ" ถูกซ่อน (SheetJS อ่านสถานะซ่อนได้)');
+  const t = I.extractTable(XLSX.utils.sheet_to_json(wb.Sheets['กรอกข้อมูล'], { header: 1, raw: true, defval: '' }), { name: 'x', districts, crops: CROPS });
+  assert.deepStrictEqual([t.crop, t.year, t.rows.length], ['ข้าวนาปรัง', 2567, 11]);
+  const k = t.rows.find((r) => r.district === 'คลองขลุง');
+  assert.deepStrictEqual([k.planted, k.harvested, k.production], [63124, 62367, 38979]);
+  assert.ok(t.rows.every((r) => !r.warn && !r.errors.length));
+});
+
+test('ตัวเลขต้องไม่ถูกดึงจากข้อความ และคีย์ซ้ำที่ค่าไม่ตรงกันต้องถูกจับได้', () => {
+  assert.ok(Number.isNaN(I.parseNumber('ข้าวโพด รุ่น1')));
+  assert.ok(Number.isNaN(I.parseNumber('ใช่')));
+  assert.strictEqual(I.parseNumber('1,234.5 ไร่'), 1234.5);
+  assert.strictEqual(I.parseNumber('12,000 ตัน*'), 12000);
+  assert.strictEqual(I.parseNumber('(150)'), -150);
+  const row = (h) => ({ year: 2567, crop: 'ข้าวนาปรัง', district_code: '6201', district: 'เมืองกำแพงเพชร', planted: 100, harvested: h, production: 60, errors: [] });
+  const same = I.combine([{ name: 'A', rows: [row(100)] }, { name: 'B', rows: [row(100)] }]);
+  assert.deepStrictEqual([same.rows.length, same.duplicates.length, same.conflicts.length], [1, 1, 0]);
+  const diff = I.combine([{ name: 'A', rows: [row(100)] }, { name: 'B', rows: [row(2556)] }]);
+  assert.strictEqual(diff.conflicts.length, 1);
+  assert.deepStrictEqual(diff.conflicts[0].tables, ['A', 'B']);
+});

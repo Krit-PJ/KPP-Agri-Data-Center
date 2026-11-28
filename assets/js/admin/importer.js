@@ -111,6 +111,9 @@
     if (!s || /^[-–—.]+$/.test(s) || /^(n\/?a|ไม่มี)$/i.test(s)) return 0;
     s = s.replace(/[๐-๙]/g, (d) => '๐๑๒๓๔๕๖๗๘๙'.indexOf(d));
     const neg = /^\(.*\)$/.test(s);
+    // ตัดหน่วย/เครื่องหมายเชิงอรรถที่พบบ่อย แล้วถ้ายังเหลือตัวอักษร = ไม่ใช่ตัวเลข (กันข้อความ เช่น "ข้าวโพด รุ่น1" ถูกอ่านเป็น 1)
+    s = s.replace(/(ไร่|ตัน|กก\.?|กิโลกรัม|บาท|ราย|%|\*|†|‡)/g, '');
+    if (/[A-Za-z\u0E00-\u0E7F]/.test(s)) return NaN;
     s = s.replace(/[,\s()]/g, '').replace(/[^\d.\-]/g, '');
     if (!s || s === '.' || s === '-') return NaN;
     const n = Number(s);
@@ -220,7 +223,14 @@
       if (rec.yield_planted === null) { rec.yield_planted = rec.planted ? Math.round(rec.production / rec.planted * 1000) : 0; if (rec.planted) rec.computed.push('yield_planted'); }
       if (!rec.year) rec.errors.push('ไม่มีปี');
       if (!rec.crop) rec.errors.push('ไม่มีชนิดพืช');
-      if (rec.harvested > rec.planted * 1.05 && rec.planted > 0) rec.warn = 'เนื้อที่เก็บเกี่ยวมากกว่าเนื้อที่ปลูก';
+      // ค่าผิดปกติ: แสดงเตือน (ยังนำเข้าได้ถ้าผู้ใช้ยืนยัน)
+      const w = [];
+      if (rec.harvested > rec.planted * 1.05) w.push(rec.planted > 0 ? 'เนื้อที่เก็บเกี่ยวมากกว่าเนื้อที่ปลูก' : 'มีเนื้อที่เก็บเกี่ยวแต่ไม่มีเนื้อที่ปลูก');
+      if (rec.harvested > 0 && rec.production === 0) w.push('มีเนื้อที่เก็บเกี่ยวแต่ผลผลิตเป็น 0');
+      if (rec.production > 0 && rec.harvested === 0 && rec.planted === 0) w.push('มีผลผลิตแต่ไม่มีเนื้อที่');
+      const yh = rec.yield_harvested || rec.yield_planted;
+      if (yh > 0 && (yh < 20 || yh > 30000)) w.push(`ผลผลิตต่อไร่ ${Math.round(yh)} กก. ผิดปกติ (ตรวจหน่วย ตัน/กก.)`);
+      if (w.length) rec.warn = w.join(' · ');
       out.rows.push(rec);
     }
     if (!out.rows.length) out.problems.push('ไม่พบแถวข้อมูลที่ตรงกับชื่ออำเภอ');
@@ -234,15 +244,21 @@
 
   /** รวมหลายตาราง + ตรวจคีย์ซ้ำ (ปี|พืช|อำเภอ) ตารางหลังทับตารางก่อน */
   function combine(tables) {
-    const byKey = new Map(), dups = [];
+    const byKey = new Map(), dups = [], src = new Map(), conflicts = [];
     tables.forEach((t) => (t.include === false ? [] : t.rows).forEach((r) => {
       if (r.errors && r.errors.length) return;
       const k = r.year + '|' + r.crop + '|' + r.district_code;
-      if (byKey.has(k)) dups.push(k);
+      if (byKey.has(k)) {
+        dups.push(k);
+        const a = byKey.get(k);
+        // คีย์เดียวกันแต่ค่าไม่ตรงกัน = ห้ามเดาว่าตารางไหนถูก ให้ผู้ใช้เลือกเอง
+        if (['planted', 'harvested', 'production'].some((f) => Math.abs((a[f] || 0) - (r[f] || 0)) > 0.005)) conflicts.push({ key: k, district: r.district, tables: [src.get(k), t.name] });
+      }
+      src.set(k, t.name);
       byKey.set(k, { year: r.year, crop: r.crop, district_code: r.district_code, district: r.district,
         planted: r.planted, harvested: r.harvested, production: r.production, yield_planted: r.yield_planted, yield_harvested: r.yield_harvested });
     }));
-    return { rows: [...byKey.values()], duplicates: dups };
+    return { rows: [...byKey.values()], duplicates: dups, conflicts };
   }
 
   // ---------- PDF (ข้อความจริง ไม่ใช่ภาพสแกน) ----------

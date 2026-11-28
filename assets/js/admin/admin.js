@@ -86,7 +86,7 @@
     for (const f of files) {
       try {
         const grids = await toGrids(f);
-        grids.forEach((g) => addTable(g.name, g.grid, f.name));
+        grids.forEach((g) => addTable(g.name, g.grid, f.name, g.pdf));
       } catch (e) { errs.push(f.name + ': ' + e.message); }
     }
     msg('file-msg', errs.length ? errs.join(' · ') : `อ่านแล้ว ${files.length} ไฟล์ พบ ${S.tables.length} ตาราง`, errs.length ? 'err' : '');
@@ -103,7 +103,10 @@
     }
     if (ext === 'xlsx' || ext === 'xls') {
       const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-      return wb.SheetNames.map((n) => ({ name: file.name + ' › ' + n, grid: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }) }));
+      // ข้ามชีตที่ซ่อนอยู่ (เช่น ชีต "รายการ" ของ Template ที่ใช้ทำ dropdown) และชีตคำอธิบายของ Template
+      const meta = (wb.Workbook && wb.Workbook.Sheets) || [];
+      return wb.SheetNames.filter((n, i) => !(meta[i] && meta[i].Hidden) && !/^(รายการ|คำอธิบาย)$/.test(n.trim()))
+        .map((n) => ({ name: file.name + ' › ' + n, grid: XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, raw: true, defval: '' }) }));
     }
     if (ext === 'pdf' || file.type === 'application/pdf') {
       const pdfjs = await import(PDFJS);
@@ -113,7 +116,7 @@
       for (let p = 1; p <= doc.numPages; p++) {
         const tc = await (await doc.getPage(p)).getTextContent();
         const grid = I.pdfItemsToGrid(tc.items);
-        out.push({ name: `${file.name} › หน้า ${p}`, grid });
+        out.push({ name: `${file.name} › หน้า ${p}`, grid, pdf: true });
       }
       if (!out.some((o) => o.grid.length)) throw new Error('ไม่พบข้อความใน PDF (อาจเป็นไฟล์สแกน) กรุณาใช้ไฟล์ Excel/CSV แทน');
       return out;
@@ -122,12 +125,13 @@
   }
 
   function ctxFor(t) { return { name: t.name, districts: S.districts, crops: S.crops, crop: t.userCrop || null, year: t.userYear || null }; }
-  function addTable(name, grid, file) {
-    const t = { id: Math.random().toString(36).slice(2), name, file, grid };
+  function addTable(name, grid, file, pdf) {
+    const t = { id: Math.random().toString(36).slice(2), name, file, grid, pdf: !!pdf };
     Object.assign(t, I.extractTable(grid, ctxFor(t)));
-    // PDF หลายหน้า: หน้าที่ไม่มีหัวตาราง ใช้การจับคู่คอลัมน์ของหน้าก่อนหน้า
+    // เฉพาะ PDF หลายหน้า: หน้าที่ไม่มีหัวตาราง (ตารางต่อจากหน้าก่อน) ใช้การจับคู่คอลัมน์ของหน้าก่อนหน้า
+    // (ห้ามใช้กับชีต Excel — ชีตอื่นในไฟล์ไม่ใช่ตารางต่อเนื่อง)
     const prev = S.tables[S.tables.length - 1];
-    if (t.headerRow < 0 && prev && prev.file === file && prev.headerRow >= 0) {
+    if (t.pdf && t.headerRow < 0 && prev && prev.pdf && prev.file === file && prev.headerRow >= 0) {
       Object.assign(t, I.extractTable([[]].concat(grid), Object.assign(ctxFor(t), { mapping: prev.mapping, headerRow: 0, crop: prev.crop, year: prev.year })));
       t.inherited = true;
     }
@@ -171,11 +175,15 @@
     }).join('');
     const sum = I.combine(S.tables);
     const errRows = S.tables.filter((t) => t.include).reduce((a, t) => a + t.rows.filter((r) => r.errors.length).length, 0);
+    const warnRows = S.tables.filter((t) => t.include).reduce((a, t) => a + t.rows.filter((r) => !r.errors.length && r.warn).length, 0);
     $('import-bar').classList.toggle('hidden', !S.tables.length);
     $('import-sum').innerHTML = `<b>พร้อมนำเข้า ${fmt(sum.rows.length)} แถว</b> จาก ${S.tables.filter((t) => t.include).length} ตาราง` +
       (errRows ? ` · <span style="color:var(--down)">มีแถวผิดพลาด ${errRows} แถว (จะไม่ถูกนำเข้า)</span>` : '') +
-      (sum.duplicates.length ? ` · ⚠️ ซ้ำกัน ${sum.duplicates.length} คีย์ (ใช้ค่าจากตารางหลัง)` : '');
-    $('btn-commit').disabled = !S.checked;
+      (sum.duplicates.length && !sum.conflicts.length ? ` · ซ้ำกัน ${sum.duplicates.length} คีย์ (ค่าตรงกัน)` : '') +
+      (sum.conflicts.length ? `<div class="form-msg err">⛔ มี ${sum.conflicts.length} อำเภอที่ปรากฏในหลายตารางแต่ค่าไม่ตรงกัน (เช่น ${esc(sum.conflicts.slice(0, 3).map((c) => c.district + ' ใน "' + c.tables.join('" และ "') + '"').join(', '))}) — กรุณายกเลิกเครื่องหมาย "นำเข้า" ของตารางที่ไม่ถูกต้องก่อน</div>` : '') +
+      (warnRows ? `<div class="w tmsg">⚠️ มีค่าผิดปกติ ${warnRows} แถว (แถวสีเหลือง วางเมาส์ดูเหตุผล) กรุณาตรวจก่อนนำเข้า</div>` : '');
+    $('btn-check').disabled = !!sum.conflicts.length;
+    $('btn-commit').disabled = !S.checked || !!sum.conflicts.length;
     if (!S.checked) $('check-result').innerHTML = '';
   }
 
@@ -198,7 +206,8 @@
   });
 
   $('btn-check').onclick = async () => {
-    const { rows } = I.combine(S.tables);
+    const { rows, conflicts } = I.combine(S.tables);
+    if (conflicts.length) return toast('มีอำเภอซ้ำในหลายตารางแต่ค่าไม่ตรงกัน กรุณาเลือกตารางที่ถูกต้อง');
     if (!rows.length) return toast('ไม่มีแถวที่พร้อมนำเข้า');
     $('check-result').innerHTML = '<div class="chkres">กำลังตรวจสอบ…</div>';
     try {
@@ -217,7 +226,8 @@
 
   $('btn-commit').onclick = async () => {
     if (!S.checked) return;
-    if (!confirm('ยืนยันนำเข้าข้อมูล? ระบบจะสำรองข้อมูลเดิมไว้และย้อนกลับได้')) return;
+    const nWarn = S.tables.filter((t) => t.include).reduce((a, t) => a + t.rows.filter((r) => !r.errors.length && r.warn).length, 0);
+    if (!confirm((nWarn ? `⚠️ มีค่าผิดปกติ ${nWarn} แถว\n` : '') + 'ยืนยันนำเข้าข้อมูล? ระบบจะสำรองข้อมูลเดิมไว้และย้อนกลับได้')) return;
     $('btn-commit').disabled = true;
     try {
       const files = [...new Set(S.tables.filter((t) => t.include).map((t) => t.file))].join(', ');
